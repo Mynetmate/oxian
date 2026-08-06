@@ -2,7 +2,8 @@ use clap::Parser;
 use ipnet::Ipv4Net;
 use oxian::cli::{Cli, Commands};
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let cli = Cli::parse();
 
     match cli.command {
