@@ -3,6 +3,7 @@
 A cli tool for scaning snmp agent in any network.
 
 ### Usage
+
 ```sh
 oxian scan [IP_CIDR] # 192.168.1.1 or 192.168.1.0/24
 ```
