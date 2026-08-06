@@ -10,8 +10,19 @@ async fn main() {
     let cli = Cli::parse();
 
     match cli.commands {
-        Commands::Walk { ip_address } => {
-            let client = Client::builder((format!("{}", &ip_address), 1611), Auth::v2c("public"))
+        Commands::Scan { ip, cidr } => {
+            if let Some(cidr) = cidr {
+                let ip_net = Ipv4Net::new(ip, cidr);
+
+                if ip_net.is_err() {
+                    panic!("Error cannot parse ip or subnet");
+                }
+
+                todo!("scan all network {:?}", ip_net);
+                // snmp_scan(ip, cidr).await;
+            }
+
+            let client = Client::builder((format!("{}", &ip), 1611_u16), Auth::v2c("public"))
                 .timeout(Duration::from_secs(5))
                 .connect()
                 .await
@@ -28,13 +39,10 @@ async fn main() {
 
             snmp_neighbor_scan(&neighbor_ip).await;
         }
-        Commands::Scan { ip_cidr } => snmp_scan(ip_cidr).await,
     }
 }
 
-async fn snmp_scan(ip_cidr: Ipv4Net) {
-    todo!("scan all network {}", ip_cidr);
-}
+// async fn snmp_scan(ip: Ipv4Addr, cidr: Option<u8>) {}
 
 async fn snmp_walk(snmp_client: &Client) -> Vec<Ipv4Addr> {
     // get a system OBJECT-CLASS
@@ -93,6 +101,7 @@ async fn snmp_neighbor_scan(neighbor_ip: &Vec<Ipv4Addr>) {
     // ip use in production (without snmp sim)
     for _ip in neighbor_ip {
         let neighbor_client = Client::builder(
+            // fixed local ip for test
             format!("{}:{}", "127.0.0.1", &sim_port),
             Auth::v2c("public"),
         )
@@ -111,4 +120,6 @@ async fn snmp_neighbor_scan(neighbor_ip: &Vec<Ipv4Addr>) {
 
         sim_port += 1;
     }
+
+    todo!("Recursion scan neighbor next hop");
 }

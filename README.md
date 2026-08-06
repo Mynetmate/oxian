@@ -13,3 +13,6 @@ oxian scan [IP_CIDR] # 192.168.1.1 or 192.168.1.0/24
 - [SNMP client](https://crates.io/crates/async-snmp)
 - [Command Line Argument Parser](https://crates.io/crates/clap)
 - [IPv4 and IPv6 methods](https://crates.io/crates/ipnet)
+
+# Testing Environtment
+- https://github.com/lextudio/snmpsim

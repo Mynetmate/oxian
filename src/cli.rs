@@ -1,9 +1,9 @@
 use std::net::Ipv4Addr;
 
 use clap::{Parser, Subcommand};
-use ipnet::Ipv4Net;
 
 #[derive(Parser)]
+#[command(name = "oxian", version, about = "Network device scanner")]
 pub struct Cli {
     #[command(subcommand)]
     pub commands: Commands,
@@ -11,6 +11,16 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    Walk { ip_address: Ipv4Addr },
-    Scan { ip_cidr: Ipv4Net },
+    /// Scan a subnet for network devices
+    Scan {
+        /// Target IP address (e.g. 192.168.1.1)
+        ip: Ipv4Addr,
+
+        /// CIDR prefix length (e.g. 24 for /24)
+        #[arg(short, long)]
+        cidr: Option<u8>,
+    },
+    // Walk {
+    //     ip_address: Ipv4Addr,
+    // },
 }
