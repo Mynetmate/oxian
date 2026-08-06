@@ -1,3 +1,6 @@
+use std::time::Duration;
+
+use async_snmp::{Auth, Client, oid};
 use clap::Parser;
 use ipnet::Ipv4Net;
 use oxian::cli::{Cli, Commands};
@@ -6,28 +9,40 @@ use oxian::cli::{Cli, Commands};
 async fn main() {
     let cli = Cli::parse();
 
-    match cli.command {
-        Commands::Scan { ip_cidr } => snmp_scan(ip_cidr),
+    match cli.commands {
+        Commands::Walk { ip_address } => {
+            let client = Client::builder((format!("{}", &ip_address), 1611), Auth::v2c("public"))
+                .timeout(Duration::from_secs(5))
+                .connect()
+                .await
+                .expect("error cannnot connect to client");
+
+            let result = client.get(&oid!(1, 3, 6, 1, 2, 1, 1, 1, 0)).await;
+
+            match result {
+                Ok(data) => println!("First node: {}", data.value),
+                Err(error) => panic!("{}", error),
+            }
+
+            snmp_walk(&client).await;
+        }
+        Commands::Scan { ip_cidr } => snmp_scan(ip_cidr).await,
     }
 }
 
-fn snmp_scan(ip_cidr: Ipv4Net) {
-    let ip = ip_cidr.addr();
-    let ip_network = ip_cidr.network();
+async fn snmp_scan(ip_cidr: Ipv4Net) {
+    todo!("scan all network {}", ip_cidr);
+}
 
-    if ip != ip_network {
-        snmp_walk();
-        todo!("scan only router or switch");
-    } else {
-        snmp_walk();
-        todo!("scan all network");
+async fn snmp_walk(snmp_client: &Client) {
+    // get a system OBJECT-CLASS
+    // oid!(1, 3, 6, 1, 2, 1, 1)
+    let mut walk = snmp_client
+        .walk(oid!(1, 3, 6, 1, 2, 1, 1))
+        .expect("cannot walk");
+
+    while let Some(result) = walk.next().await {
+        let vb = result.expect("cannot get vb");
+        println!("{}: {:?}", vb.oid, vb.value)
     }
-}
-
-fn snmp_scan_agent() {
-    todo!("scan snmp agent");
-}
-
-fn snmp_walk() {
-    todo!("scan snmp agent in other networks");
 }
