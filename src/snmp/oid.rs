@@ -41,6 +41,18 @@ pub fn lldp_rem_port_id() -> Oid {
     oid!(1, 0, 8802, 1, 1, 2, 1, 4, 1, 1, 7)
 }
 
+pub fn lldp_rem_port_description() -> Oid {
+    oid!(1, 0, 8802, 1, 1, 2, 1, 4, 1, 1, 8)
+}
+
 pub fn lldp_rem_man_addr() -> Oid {
     oid!(1, 0, 8802, 1, 1, 2, 1, 4, 2, 1, 2)
+}
+
+pub fn lldp_loc_chassis_id() -> Oid {
+    oid!(1, 0, 8802, 1, 1, 2, 1, 3, 2, 0)
+}
+
+pub fn lldp_rem_chassis_id() -> Oid {
+    oid!(1, 0, 8802, 1, 1, 2, 1, 4, 1, 1, 5)
 }

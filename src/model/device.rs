@@ -9,6 +9,8 @@ pub struct Device {
     pub description: Option<String>,
     pub vendor: Vendor,
     pub interface: Vec<model::Interface>,
+
+    pub chassis_id: Option<String>,
 }
 
 #[derive(Debug)]
