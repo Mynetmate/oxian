@@ -21,6 +21,8 @@ async fn scan_device(ip: IpAddr) -> anyhow::Result<DiscoveryResult> {
     let mut devices = Vec::new();
     let mut links = Vec::new();
 
+    let mut neighbor_records: Vec<(IpAddr, Neighbor)> = Vec::new();
+
     queue.push_back(ip);
 
     while let Some(ip) = queue.pop_front() {
@@ -28,31 +30,10 @@ async fn scan_device(ip: IpAddr) -> anyhow::Result<DiscoveryResult> {
             continue;
         }
 
-        let (device, neighbors) = match scan_one_device(ip).await {
-            Ok(d) => d,
-            Err(e) => {
-                eprintln!("Failed to scan {ip}: {e}");
-                visited.insert(ip);
-                continue;
-            }
-        };
+        let (device, neighbors) = scan_one_device(ip).await?;
 
-        for neighbor in &neighbors {
-            if let Some(remote_ip) = neighbor.remote_ip {
-                let local_interface = device
-                    .interface
-                    .iter()
-                    .find(|interface| interface.index == neighbor.local_interface)
-                    .and_then(|interface| interface.description.clone());
-
-                links.push(Link {
-                    source_ip: device.ip,
-                    source_interface: local_interface,
-
-                    target_ip: remote_ip,
-                    target_interface: neighbor.remote_interface.clone(),
-                });
-            }
+        for neighbor in neighbors.iter().cloned() {
+            neighbor_records.push((device.ip, neighbor));
         }
 
         for neighbor in &neighbors {
@@ -67,6 +48,52 @@ async fn scan_device(ip: IpAddr) -> anyhow::Result<DiscoveryResult> {
         devices.push(device);
     }
 
+    for (source_ip, neighbor) in &neighbor_records {
+        let source_device = devices.iter().find(|d| d.ip == *source_ip);
+
+        let Some(source_device) = source_device else {
+            continue;
+        };
+
+        let source_interface = source_device
+            .interface
+            .iter()
+            .find(|inf| inf.index == neighbor.local_interface)
+            .and_then(|inf| inf.description.clone());
+
+        let target_device = devices
+            .iter()
+            .find(|d| d.chassis_id.as_deref() == Some(neighbor.chassis_id.as_str()))
+            .or_else(|| {
+                neighbor
+                    .remote_ip
+                    .and_then(|ip| devices.iter().find(|d| d.ip == ip))
+            })
+            .or_else(|| {
+                devices
+                    .iter()
+                    .find(|d| d.hostname.as_deref() == neighbor.hostname.as_deref())
+            });
+
+        let Some(target_device) = target_device else {
+            continue;
+        };
+
+        let exists = links.iter().any(|l: &Link| {
+            (l.source_ip == source_device.ip) && (l.target_ip == target_device.ip)
+                || (l.source_ip == target_device.ip) && (l.target_ip == source_device.ip)
+        });
+
+        if !exists {
+            links.push(Link {
+                source_ip: source_device.ip,
+                source_interface,
+                target_ip: target_device.ip,
+                target_interface: Some(neighbor.remote_port_id.clone()),
+            });
+        }
+    }
+
     Ok(DiscoveryResult { devices, links })
 }
 
@@ -76,6 +103,7 @@ async fn scan_one_device(ip: IpAddr) -> anyhow::Result<(Device, Vec<Neighbor>)> 
     let sys_info = snmp::get_device_info(&client).await?;
     let interface = snmp::get_device_interface(&client).await?;
     let neighbors = snmp::discover_neighbors(&client).await?;
+    let chassis_id = snmp::get_local_chassis_id(&client).await?;
 
     let vendor = vendor::detect_vender(sys_info.object_id.as_deref());
 
@@ -85,6 +113,7 @@ async fn scan_one_device(ip: IpAddr) -> anyhow::Result<(Device, Vec<Neighbor>)> 
         description: sys_info.description,
         vendor,
         interface,
+        chassis_id,
     };
 
     Ok((device, neighbors))

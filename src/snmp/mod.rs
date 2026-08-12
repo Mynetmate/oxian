@@ -6,7 +6,7 @@ mod system;
 
 pub use client::connect;
 pub use interface::get_device_interface;
-pub use neighbors::discover_neighbors;
+pub use neighbors::{discover_neighbors, get_local_chassis_id};
 pub use system::get_device_info;
 
 use async_snmp::{Client, Oid, Value};
