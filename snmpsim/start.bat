@@ -3,6 +3,8 @@ REM ============================================
 REM Start snmpsim test environment for oxian
 REM ============================================
 
+cd /d "%~dp0"
+
 if not exist ".venv\Scripts\activate.bat" (
     echo venv not found, creating...
     python -m venv .venv
