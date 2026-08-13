@@ -3,8 +3,10 @@ use std::{
     net::IpAddr,
 };
 
+use ipnet::Ipv4Net;
+
 use crate::{
-    model::{Device, DiscoveryResult, Link, Neighbor},
+    models::{Device, DiscoveryResult, Link, Neighbor, UnresolvedNeighbor},
     snmp, vendor,
 };
 
@@ -22,6 +24,7 @@ async fn scan_device(ip: IpAddr) -> anyhow::Result<DiscoveryResult> {
     let mut links = Vec::new();
 
     let mut neighbor_records: Vec<(IpAddr, Neighbor)> = Vec::new();
+    let mut unresolved_neighbors = Vec::new();
 
     queue.push_back(ip);
 
@@ -30,7 +33,14 @@ async fn scan_device(ip: IpAddr) -> anyhow::Result<DiscoveryResult> {
             continue;
         }
 
-        let (device, neighbors) = scan_one_device(ip).await?;
+        let (device, neighbors) = match scan_one_device(ip).await {
+            Ok(result) => result,
+            Err(e) => {
+                eprintln!("Failed to scan {ip}: {e}");
+                visited.insert(ip);
+                continue;
+            }
+        };
 
         for neighbor in neighbors.iter().cloned() {
             neighbor_records.push((device.ip, neighbor));
@@ -76,6 +86,10 @@ async fn scan_device(ip: IpAddr) -> anyhow::Result<DiscoveryResult> {
             });
 
         let Some(target_device) = target_device else {
+            unresolved_neighbors.push(UnresolvedNeighbor {
+                source_ip: *source_ip,
+                neighbor: neighbor.clone(),
+            });
             continue;
         };
 
@@ -89,12 +103,17 @@ async fn scan_device(ip: IpAddr) -> anyhow::Result<DiscoveryResult> {
                 source_ip: source_device.ip,
                 source_interface,
                 target_ip: target_device.ip,
-                target_interface: Some(neighbor.remote_port_id.clone()),
+                target_port_id: neighbor.remote_port_id.clone(),
+                target_port_description: neighbor.remote_port_description.clone(),
             });
         }
     }
 
-    Ok(DiscoveryResult { devices, links })
+    Ok(DiscoveryResult {
+        devices,
+        links,
+        unresolved_neighbors,
+    })
 }
 
 async fn scan_one_device(ip: IpAddr) -> anyhow::Result<(Device, Vec<Neighbor>)> {
@@ -102,8 +121,8 @@ async fn scan_one_device(ip: IpAddr) -> anyhow::Result<(Device, Vec<Neighbor>)> 
 
     let sys_info = snmp::get_device_info(&client).await?;
     let interface = snmp::get_device_interface(&client).await?;
-    let neighbors = snmp::discover_neighbors(&client).await?;
     let chassis_id = snmp::get_local_chassis_id(&client).await?;
+    let neighbors = snmp::discover_neighbors(&client).await?;
 
     let vendor = vendor::detect_vender(sys_info.object_id.as_deref());
 
@@ -119,14 +138,35 @@ async fn scan_one_device(ip: IpAddr) -> anyhow::Result<(Device, Vec<Neighbor>)> 
     Ok((device, neighbors))
 }
 
-#[allow(dead_code)]
 async fn scan_network(ip: IpAddr, cidr: u8) -> anyhow::Result<DiscoveryResult> {
-    // let ip_net = Ipv4Net::new(ip.is_ipv4(), cidr);
+    let net = match ip {
+        IpAddr::V4(ipv4) => Ipv4Net::new(ipv4, cidr)?,
+        IpAddr::V6(_) => anyhow::bail!("IPv6 is not supported yet"),
+    };
 
-    if cidr == 0 && cidr > 30 {
-        panic!("Error cannot parse ip or subnet");
+    let mut devices = Vec::new();
+    // let links = Vec::new();
+    // let unresolved_neighbors = Vec::new();
+
+    for host in net.hosts() {
+        let ip = IpAddr::V4(host);
+
+        match scan_one_device(ip).await {
+            Ok((device, _neighbors)) => {
+                devices.push(device);
+            }
+            Err(_) => {
+                continue;
+            }
+        }
     }
 
-    todo!("scan all network {:?}", ip);
-    // snmp_scan(ip, cidr).await;
+    println!("{:?}", devices);
+    todo!("Concurrent devices scan")
+
+    // Ok(DiscoveryResult {
+    //     devices,
+    //     links,
+    //     unresolved_neighbors,
+    // });
 }

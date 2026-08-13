@@ -8,4 +8,4 @@ pub use device::{Device, Vendor};
 pub use discovery::DiscoveryResult;
 pub use interface::{Interface, InterfaceStatus};
 pub use link::Link;
-pub use neighbor::Neighbor;
+pub use neighbor::{Neighbor, UnresolvedNeighbor};

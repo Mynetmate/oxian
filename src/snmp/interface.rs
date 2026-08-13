@@ -1,7 +1,7 @@
 use async_snmp::Client;
 
 use crate::{
-    model::{Interface, InterfaceStatus},
+    models::{Interface, InterfaceStatus},
     snmp::{oid, walk_column},
 };
 

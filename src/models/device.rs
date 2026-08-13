@@ -1,6 +1,6 @@
 use std::net::IpAddr;
 
-use crate::model;
+use crate::models;
 
 #[derive(Debug)]
 pub struct Device {
@@ -8,7 +8,7 @@ pub struct Device {
     pub hostname: Option<String>,
     pub description: Option<String>,
     pub vendor: Vendor,
-    pub interface: Vec<model::Interface>,
+    pub interface: Vec<models::Interface>,
 
     pub chassis_id: Option<String>,
 }

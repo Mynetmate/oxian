@@ -3,7 +3,7 @@ use std::net::IpAddr;
 use async_snmp::Client;
 
 use crate::{
-    model::Neighbor,
+    models::Neighbor,
     snmp::{oid, walk_lldp_column},
 };
 

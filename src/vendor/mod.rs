@@ -1,7 +1,4 @@
-pub mod cisco;
-pub mod mikrotik;
-
-use crate::model::Vendor;
+use crate::models::Vendor;
 
 pub fn detect_vender(sys_object_id: Option<&str>) -> Vendor {
     match sys_object_id {

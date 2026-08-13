@@ -12,3 +12,9 @@ pub struct Neighbor {
 
     pub local_interface: u32,
 }
+
+#[derive(Debug, Clone)]
+pub struct UnresolvedNeighbor {
+    pub source_ip: IpAddr,
+    pub neighbor: Neighbor,
+}
