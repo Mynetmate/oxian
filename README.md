@@ -1,19 +1,19 @@
-# Oxian - Auto network devices discovery
+# Oxian - Automatic Network Device Discovery
 
-A cli tool for scaning snmp agent in any network.
+A CLI tool for scanning SNMP agents across any network.
 
 ### Usage
 
 ```sh
-oxian scan [IP_CIDR] # 192.168.1.1 or 192.168.1.0/24
+oxian scan <IP> # e.g., 192.168.1.1
 ```
 
-# Library
+# Dependencies
 - [Async runtime](https://crates.io/crates/tokio)
 - [SNMP client](https://crates.io/crates/async-snmp)
 - [Command Line Argument Parser](https://crates.io/crates/clap)
 - [IPv4 and IPv6 methods](https://crates.io/crates/ipnet)
 
-# Testing Environtment
+# Testing Environment
 - https://github.com/lextudio/snmpsim
 - https://github.com/srl-labs/containerlab
