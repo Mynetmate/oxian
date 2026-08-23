@@ -65,7 +65,7 @@ fn test_resolve_topology_with_managed_devices() {
         ),
     ];
 
-    let result = resolve_topology(vec![device_a, device_b], neighbor_records);
+    let result = resolve_topology(vec![device_a, device_b], neighbor_records, vec![]);
 
     assert_eq!(result.devices.len(), 2);
     assert!(result.devices.iter().all(|d| d.is_managed));
@@ -102,7 +102,7 @@ fn test_resolve_topology_with_unresolved_neighbor() {
         },
     )];
 
-    let result = resolve_topology(vec![device_a], neighbor_records);
+    let result = resolve_topology(vec![device_a], neighbor_records, vec![]);
 
     assert_eq!(result.devices.len(), 2);
 
@@ -181,7 +181,7 @@ fn test_resolve_topology_unresolved_node_deduplication() {
         ),
     ];
 
-    let result = resolve_topology(vec![device_a, device_b], neighbor_records);
+    let result = resolve_topology(vec![device_a, device_b], neighbor_records, vec![]);
 
     // 2 managed + 1 deduplicated unresolved switch = 3 devices
     assert_eq!(result.devices.len(), 3);
@@ -218,7 +218,7 @@ fn test_resolve_topology_anonymous_unresolved_neighbor() {
         },
     )];
 
-    let result = resolve_topology(vec![device_a], neighbor_records);
+    let result = resolve_topology(vec![device_a], neighbor_records, vec![]);
 
     // Only 1 device (cannot infer node with zero identifiers)
     assert_eq!(result.devices.len(), 1);
