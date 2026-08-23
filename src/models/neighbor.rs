@@ -1,6 +1,6 @@
 use std::net::IpAddr;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Neighbor {
     pub chassis_id: String,
 
@@ -13,7 +13,7 @@ pub struct Neighbor {
     pub local_interface: u32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct UnresolvedNeighbor {
     pub source_ip: IpAddr,
     pub neighbor: Neighbor,

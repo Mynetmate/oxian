@@ -1,4 +1,4 @@
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InterfaceStatus {
     Up,
     Down,
@@ -17,7 +17,7 @@ impl From<u32> for InterfaceStatus {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Interface {
     pub index: u32,
     pub description: Option<String>,
