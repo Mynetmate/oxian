@@ -56,3 +56,7 @@ pub fn lldp_loc_chassis_id() -> Oid {
 pub fn lldp_rem_chassis_id() -> Oid {
     oid!(1, 0, 8802, 1, 1, 2, 1, 4, 1, 1, 5)
 }
+
+pub fn ip_cidr_route_next_hop() -> Oid {
+    oid!(1, 3, 6, 1, 2, 1, 4, 24, 4, 1, 7)
+}

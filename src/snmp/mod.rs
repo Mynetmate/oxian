@@ -2,11 +2,13 @@ mod client;
 mod interface;
 mod neighbors;
 mod oid;
+mod route;
 mod system;
 
 pub use client::connect;
 pub use interface::get_device_interface;
 pub use neighbors::{discover_neighbors, get_local_chassis_id};
+pub use route::get_default_route;
 pub use system::get_device_info;
 
 use async_snmp::{Client, Oid, Value};
