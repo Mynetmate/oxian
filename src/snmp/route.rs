@@ -45,10 +45,13 @@ pub async fn get_default_route(client: &Client) -> anyhow::Result<Option<Default
         if_index_parts.extend_from_slice(suffix);
 
         let local_interface = match client.get(&Oid::from(if_index_parts)).await {
-            Ok(vb) => match vb.value {
-                Value::Integer(v) => u32::try_from(v).unwrap_or(0),
-                Value::Gauge32(v) | Value::UInteger32(v) => v,
-                _ => 0,
+            Ok(mut response) => match response.varbinds.pop() {
+                Some(vb) => match vb.value {
+                    Value::Integer(v) => u32::try_from(v).unwrap_or(0),
+                    Value::Gauge32(v) | Value::UInteger32(v) => v,
+                    _ => 0,
+                },
+                None => 0,
             },
             Err(_) => 0,
         };

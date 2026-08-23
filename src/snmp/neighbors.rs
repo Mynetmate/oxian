@@ -11,7 +11,7 @@ pub async fn get_local_chassis_id(client: &Client) -> anyhow::Result<Option<Stri
     let result = client.get(&oid::lldp_loc_chassis_id()).await;
 
     match result {
-        Ok(v) => Ok(Some(normalize_chassis_id(&v.value.to_string()))),
+        Ok(mut res) => Ok(res.varbinds.pop().map(|v| normalize_chassis_id(&v.value.to_string()))),
         Err(_) => Ok(None),
     }
 }
@@ -49,8 +49,6 @@ fn normalize_chassis_id(value: &str) -> String {
     value
         .trim()
         .trim_start_matches("0x")
-        .replace(':', "")
-        .replace('.', "")
-        .replace('-', "")
+        .replace([':', '.', '-'], "")
         .to_ascii_lowercase()
 }

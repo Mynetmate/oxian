@@ -10,13 +10,17 @@ pub struct SystemInfo {
 }
 
 pub async fn get_device_info(client: &Client) -> anyhow::Result<SystemInfo> {
-    let sys_name = client.get(&oid::sys_name()).await?;
-    let sys_descr = client.get(&oid::sys_descr()).await?;
-    let sys_object_id = client.get(&oid::sys_object_id()).await?;
+    let mut sys_name = client.get(&oid::sys_name()).await?;
+    let mut sys_descr = client.get(&oid::sys_descr()).await?;
+    let mut sys_object_id = client.get(&oid::sys_object_id()).await?;
+
+    let hostname = sys_name.varbinds.pop().map(|vb| vb.value.to_string());
+    let description = sys_descr.varbinds.pop().map(|vb| vb.value.to_string());
+    let object_id = sys_object_id.varbinds.pop().map(|vb| vb.value.to_string());
 
     Ok(SystemInfo {
-        hostname: Some(sys_name.value.to_string()),
-        description: Some(sys_descr.value.to_string()),
-        object_id: Some(sys_object_id.value.to_string()),
+        hostname,
+        description,
+        object_id,
     })
 }
