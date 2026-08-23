@@ -1,3 +1,3 @@
 mod engine;
 
-pub use engine::scan;
+pub use engine::{resolve_topology, scan};

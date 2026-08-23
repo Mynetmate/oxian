@@ -6,7 +6,7 @@ use std::{
 use ipnet::Ipv4Net;
 
 use crate::{
-    models::{Device, DiscoveryResult, Link, Neighbor, UnresolvedNeighbor},
+    models::{Device, DiscoveryResult, Link, Neighbor, UnresolvedNeighbor, Vendor},
     snmp, vendor,
 };
 
@@ -21,10 +21,8 @@ async fn scan_device(ip: IpAddr) -> anyhow::Result<DiscoveryResult> {
     let mut queue: VecDeque<IpAddr> = VecDeque::new();
     let mut visited = HashSet::new();
     let mut devices = Vec::new();
-    let mut links = Vec::new();
 
     let mut neighbor_records: Vec<(IpAddr, Neighbor)> = Vec::new();
-    let mut unresolved_neighbors = Vec::new();
 
     queue.push_back(ip);
 
@@ -43,14 +41,16 @@ async fn scan_device(ip: IpAddr) -> anyhow::Result<DiscoveryResult> {
         };
 
         for neighbor in neighbors.iter().cloned() {
-            neighbor_records.push((device.ip, neighbor));
+            neighbor_records.push((ip, neighbor));
         }
 
         for neighbor in &neighbors {
-            if let Some(remote_ip) = neighbor.remote_ip {
-                if !visited.contains(&remote_ip) {
-                    queue.push_back(remote_ip);
-                }
+            let Some(remote_ip) = neighbor.remote_ip else {
+                continue;
+            };
+
+            if !visited.contains(&remote_ip) {
+                queue.push_back(remote_ip);
             }
         }
 
@@ -58,10 +58,32 @@ async fn scan_device(ip: IpAddr) -> anyhow::Result<DiscoveryResult> {
         devices.push(device);
     }
 
-    for (source_ip, neighbor) in &neighbor_records {
-        let source_device = devices.iter().find(|d| d.ip == *source_ip);
+    Ok(resolve_topology(devices, neighbor_records))
+}
 
-        let Some(source_device) = source_device else {
+pub fn resolve_topology(
+    mut devices: Vec<Device>,
+    neighbor_records: Vec<(IpAddr, Neighbor)>,
+) -> DiscoveryResult {
+    let mut links = Vec::new();
+    let mut unresolved_neighbors = Vec::new();
+
+    for (_, neighbor) in &neighbor_records {
+        let is_already_known = find_target_device(&devices, neighbor).is_some();
+
+        if is_already_known {
+            continue;
+        }
+
+        let Some(unresolved_device) = infer_unresolved_device(neighbor) else {
+            continue;
+        };
+
+        devices.push(unresolved_device);
+    }
+
+    for (source_ip, neighbor) in &neighbor_records {
+        let Some(source_device) = devices.iter().find(|d| d.ip == Some(*source_ip)) else {
             continue;
         };
 
@@ -71,21 +93,7 @@ async fn scan_device(ip: IpAddr) -> anyhow::Result<DiscoveryResult> {
             .find(|inf| inf.index == neighbor.local_interface)
             .and_then(|inf| inf.description.clone());
 
-        let target_device = devices
-            .iter()
-            .find(|d| d.chassis_id.as_deref() == Some(neighbor.chassis_id.as_str()))
-            .or_else(|| {
-                neighbor
-                    .remote_ip
-                    .and_then(|ip| devices.iter().find(|d| d.ip == ip))
-            })
-            .or_else(|| {
-                devices
-                    .iter()
-                    .find(|d| d.hostname.as_deref() == neighbor.hostname.as_deref())
-            });
-
-        let Some(target_device) = target_device else {
+        let Some(target_device) = find_target_device(&devices, neighbor) else {
             unresolved_neighbors.push(UnresolvedNeighbor {
                 source_ip: *source_ip,
                 neighbor: neighbor.clone(),
@@ -93,26 +101,92 @@ async fn scan_device(ip: IpAddr) -> anyhow::Result<DiscoveryResult> {
             continue;
         };
 
-        let exists = links.iter().any(|l: &Link| {
-            (l.source_ip == source_device.ip) && (l.target_ip == target_device.ip)
-                || (l.source_ip == target_device.ip) && (l.target_ip == source_device.ip)
-        });
-
-        if !exists {
+        if !is_duplicate_link(
+            &links,
+            source_device,
+            target_device,
+            source_interface.as_deref(),
+            &neighbor.remote_port_id,
+        ) {
             links.push(Link {
                 source_ip: source_device.ip,
+                source_chassis_id: source_device.chassis_id.clone(),
                 source_interface,
                 target_ip: target_device.ip,
+                target_chassis_id: target_device.chassis_id.clone(),
+                target_hostname: target_device.hostname.clone(),
                 target_port_id: neighbor.remote_port_id.clone(),
                 target_port_description: neighbor.remote_port_description.clone(),
             });
         }
     }
 
-    Ok(DiscoveryResult {
+    DiscoveryResult {
         devices,
         links,
         unresolved_neighbors,
+    }
+}
+
+fn matches_neighbor(device: &Device, neighbor: &Neighbor) -> bool {
+    (!neighbor.chassis_id.is_empty()
+        && device.chassis_id.as_deref() == Some(neighbor.chassis_id.as_str()))
+        || (neighbor.remote_ip.is_some() && device.ip == neighbor.remote_ip)
+        || (neighbor.hostname.is_some()
+            && device.hostname.as_deref() == neighbor.hostname.as_deref())
+}
+
+fn find_target_device<'a>(devices: &'a [Device], neighbor: &Neighbor) -> Option<&'a Device> {
+    devices
+        .iter()
+        .find(|device| matches_neighbor(device, neighbor))
+}
+
+fn infer_unresolved_device(neighbor: &Neighbor) -> Option<Device> {
+    let has_identity = !neighbor.chassis_id.is_empty()
+        || neighbor.remote_ip.is_some()
+        || neighbor.hostname.is_some();
+
+    if !has_identity {
+        return None;
+    }
+
+    let chassis_id = if neighbor.chassis_id.is_empty() {
+        None
+    } else {
+        Some(neighbor.chassis_id.clone())
+    };
+
+    Some(Device {
+        ip: neighbor.remote_ip,
+        hostname: neighbor.hostname.clone(),
+        description: neighbor.remote_port_description.clone(),
+        vendor: Vendor::Unknown,
+        interface: vec![],
+        chassis_id,
+        is_managed: false,
+    })
+}
+
+fn is_duplicate_link(
+    links: &[Link],
+    source: &Device,
+    target: &Device,
+    source_interface: Option<&str>,
+    remote_port_id: &str,
+) -> bool {
+    links.iter().any(|link| {
+        let forward = link.source_ip == source.ip
+            && link.source_interface.as_deref() == source_interface
+            && link.target_chassis_id == target.chassis_id
+            && link.target_port_id == remote_port_id;
+
+        let reverse = link.source_chassis_id == target.chassis_id
+            && link.target_chassis_id == source.chassis_id
+            && ((link.source_ip.is_some() && link.source_ip == target.ip)
+                || (link.target_ip.is_some() && link.target_ip == source.ip));
+
+        forward || reverse
     })
 }
 
@@ -127,12 +201,13 @@ async fn scan_one_device(ip: IpAddr) -> anyhow::Result<(Device, Vec<Neighbor>)> 
     let vendor = vendor::detect_vender(sys_info.object_id.as_deref());
 
     let device = Device {
-        ip,
+        ip: Some(ip),
         hostname: sys_info.hostname,
         description: sys_info.description,
         vendor,
         interface,
         chassis_id,
+        is_managed: true,
     };
 
     Ok((device, neighbors))

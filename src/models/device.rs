@@ -2,18 +2,19 @@ use std::net::IpAddr;
 
 use crate::models;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Device {
-    pub ip: IpAddr,
+    pub ip: Option<IpAddr>,
     pub hostname: Option<String>,
     pub description: Option<String>,
     pub vendor: Vendor,
     pub interface: Vec<models::Interface>,
 
     pub chassis_id: Option<String>,
+    pub is_managed: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Vendor {
     Cisco,
     MikroTik,
