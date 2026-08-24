@@ -25,7 +25,7 @@ fn test_resolve_topology_with_managed_devices() {
         hostname: Some("Switch-A".to_string()),
         description: Some("Cisco 2960".to_string()),
         vendor: Vendor::Cisco,
-        interface: vec![create_test_interface(1, "GigabitEthernet0/1")],
+        interfaces: vec![create_test_interface(1, "GigabitEthernet0/1")],
         chassis_id: Some("0011223344aa".to_string()),
         is_managed: true,
     };
@@ -35,7 +35,7 @@ fn test_resolve_topology_with_managed_devices() {
         hostname: Some("Switch-B".to_string()),
         description: Some("Cisco 2960".to_string()),
         vendor: Vendor::Cisco,
-        interface: vec![create_test_interface(2, "GigabitEthernet0/2")],
+        interfaces: vec![create_test_interface(2, "GigabitEthernet0/2")],
         chassis_id: Some("0011223344bb".to_string()),
         is_managed: true,
     };
@@ -85,7 +85,7 @@ fn test_resolve_topology_with_unresolved_neighbor() {
         hostname: Some("Switch-A".to_string()),
         description: Some("Managed Switch".to_string()),
         vendor: Vendor::Cisco,
-        interface: vec![create_test_interface(5, "GigabitEthernet0/5")],
+        interfaces: vec![create_test_interface(5, "GigabitEthernet0/5")],
         chassis_id: Some("0011223344aa".to_string()),
         is_managed: true,
     };
@@ -140,7 +140,7 @@ fn test_resolve_topology_unresolved_node_deduplication() {
         hostname: Some("Switch-A".to_string()),
         description: None,
         vendor: Vendor::Cisco,
-        interface: vec![create_test_interface(1, "Gi0/1")],
+        interfaces: vec![create_test_interface(1, "Gi0/1")],
         chassis_id: Some("0011223344aa".to_string()),
         is_managed: true,
     };
@@ -150,7 +150,7 @@ fn test_resolve_topology_unresolved_node_deduplication() {
         hostname: Some("Switch-B".to_string()),
         description: None,
         vendor: Vendor::Cisco,
-        interface: vec![create_test_interface(1, "Gi0/1")],
+        interfaces: vec![create_test_interface(1, "Gi0/1")],
         chassis_id: Some("0011223344bb".to_string()),
         is_managed: true,
     };
@@ -201,7 +201,7 @@ fn test_resolve_topology_anonymous_unresolved_neighbor() {
         hostname: Some("Switch-A".to_string()),
         description: None,
         vendor: Vendor::Cisco,
-        interface: vec![create_test_interface(1, "Gi0/1")],
+        interfaces: vec![create_test_interface(1, "Gi0/1")],
         chassis_id: Some("0011223344aa".to_string()),
         is_managed: true,
     };

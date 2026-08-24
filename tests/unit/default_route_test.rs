@@ -25,7 +25,7 @@ fn test_resolve_topology_with_default_gateway() {
         hostname: Some("Edge-Router".to_string()),
         description: Some("Cisco ISR 4331".to_string()),
         vendor: Vendor::Cisco,
-        interface: vec![
+        interfaces: vec![
             create_test_interface(1, "GigabitEthernet0/0/0 (WAN)"),
             create_test_interface(2, "GigabitEthernet0/0/1 (LAN)"),
         ],
@@ -73,7 +73,7 @@ fn test_resolve_topology_default_gateway_already_known() {
         hostname: Some("Branch-Router".to_string()),
         description: None,
         vendor: Vendor::Cisco,
-        interface: vec![create_test_interface(1, "Gi0/0")],
+        interfaces: vec![create_test_interface(1, "Gi0/0")],
         chassis_id: Some("0011223344aa".to_string()),
         is_managed: true,
     };
@@ -83,7 +83,7 @@ fn test_resolve_topology_default_gateway_already_known() {
         hostname: Some("Core-Switch".to_string()),
         description: None,
         vendor: Vendor::Cisco,
-        interface: vec![create_test_interface(24, "Gi1/0/24")],
+        interfaces: vec![create_test_interface(24, "Gi1/0/24")],
         chassis_id: Some("0011223344bb".to_string()),
         is_managed: true,
     };
@@ -120,7 +120,7 @@ fn test_resolve_topology_default_gateway_deduplication() {
         hostname: Some("Router-A".to_string()),
         description: None,
         vendor: Vendor::Cisco,
-        interface: vec![create_test_interface(1, "WAN1")],
+        interfaces: vec![create_test_interface(1, "WAN1")],
         chassis_id: Some("0011223344aa".to_string()),
         is_managed: true,
     };
@@ -130,7 +130,7 @@ fn test_resolve_topology_default_gateway_deduplication() {
         hostname: Some("Router-B".to_string()),
         description: None,
         vendor: Vendor::Cisco,
-        interface: vec![create_test_interface(1, "WAN1")],
+        interfaces: vec![create_test_interface(1, "WAN1")],
         chassis_id: Some("0011223344bb".to_string()),
         is_managed: true,
     };

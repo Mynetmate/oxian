@@ -11,7 +11,7 @@ pub async fn scan_one_device(
     let client = snmp::connect(ip).await?;
 
     let sys_info = snmp::get_device_info(&client).await?;
-    let interface = snmp::get_device_interface(&client).await?;
+    let interfaces = snmp::get_device_interface(&client).await?;
     let chassis_id = snmp::get_local_chassis_id(&client).await?;
     let neighbors = snmp::discover_neighbors(&client).await?;
     let default_route = snmp::get_default_route(&client).await.unwrap_or(None);
@@ -23,7 +23,7 @@ pub async fn scan_one_device(
         hostname: sys_info.hostname,
         description: sys_info.description,
         vendor,
-        interface,
+        interfaces,
         chassis_id,
         is_managed: true,
     };

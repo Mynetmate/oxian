@@ -53,7 +53,7 @@ fn resolve_lldp_neighbors(
         };
 
         let source_interface = source_device
-            .interface
+            .interfaces
             .iter()
             .find(|inf| inf.index == neighbor.local_interface)
             .and_then(|inf| inf.description.clone());
@@ -104,7 +104,7 @@ fn resolve_default_routes(
             hostname: Some("Default Gateway".to_string()),
             description: Some("Discovered via Default Route (0.0.0.0/0)".to_string()),
             vendor: Vendor::Unknown,
-            interface: vec![],
+            interfaces: vec![],
             chassis_id: None,
             is_managed: false,
         };
@@ -118,7 +118,7 @@ fn resolve_default_routes(
         };
 
         let source_interface = source_device
-            .interface
+            .interfaces
             .iter()
             .find(|inf| inf.index == route.local_interface)
             .and_then(|inf| inf.description.clone());
@@ -184,7 +184,7 @@ fn infer_unresolved_device(neighbor: &Neighbor) -> Option<Device> {
         hostname: neighbor.hostname.clone(),
         description: neighbor.remote_port_description.clone(),
         vendor: Vendor::Unknown,
-        interface: vec![],
+        interfaces: vec![],
         chassis_id,
         is_managed: false,
     })

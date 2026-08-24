@@ -8,7 +8,7 @@ pub struct Device {
     pub hostname: Option<String>,
     pub description: Option<String>,
     pub vendor: Vendor,
-    pub interface: Vec<models::Interface>,
+    pub interfaces: Vec<models::Interface>,
 
     pub chassis_id: Option<String>,
     pub is_managed: bool,
