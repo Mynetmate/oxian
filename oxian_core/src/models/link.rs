@@ -1,6 +1,7 @@
+use serde::Serialize;
 use std::net::IpAddr;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Link {
     pub source_ip: Option<IpAddr>,
     pub source_chassis_id: Option<String>,

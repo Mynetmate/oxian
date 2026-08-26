@@ -1,6 +1,7 @@
+use serde::Serialize;
 use std::net::IpAddr;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Neighbor {
     pub chassis_id: String,
 
@@ -13,7 +14,7 @@ pub struct Neighbor {
     pub local_interface: u32,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct UnresolvedNeighbor {
     pub source_ip: IpAddr,
     pub neighbor: Neighbor,

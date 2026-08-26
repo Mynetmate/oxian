@@ -1,8 +1,9 @@
+use serde::Serialize;
 use std::net::IpAddr;
 
 use crate::models;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Device {
     pub ip: Option<IpAddr>,
     pub hostname: Option<String>,
@@ -14,7 +15,7 @@ pub struct Device {
     pub is_managed: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum Vendor {
     Cisco,
     MikroTik,

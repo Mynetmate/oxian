@@ -1,4 +1,6 @@
-#[derive(Debug, Clone, PartialEq, Eq)]
+use serde::Serialize;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum InterfaceStatus {
     Up,
     Down,
@@ -17,7 +19,7 @@ impl From<u32> for InterfaceStatus {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Interface {
     pub index: u32,
     pub description: Option<String>,
