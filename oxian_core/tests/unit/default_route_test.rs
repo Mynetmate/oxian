@@ -1,6 +1,6 @@
 use std::net::{IpAddr, Ipv4Addr};
 
-use oxian::{
+use oxian_core::{
     discovery::resolve_topology,
     models::{DefaultRoute, Device, Interface, InterfaceStatus, Vendor},
 };

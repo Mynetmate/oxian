@@ -1,9 +1,9 @@
-mod cli;
-
 use clap::Parser;
-use cli::{Cli, Commands};
-
-use oxian::{discovery, models::DiscoveryResult};
+use oxian_cli::{Cli, Commands};
+use oxian_core::{
+    discovery,
+    models::{DiscoveryResult, Vendor},
+};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -35,10 +35,10 @@ fn print_discovery_result(result: &DiscoveryResult) {
             .map(|ip| ip.to_string())
             .unwrap_or_else(|| "-".to_string());
         let vendor = match device.vendor {
-            oxian::models::Vendor::Cisco => "Cisco",
-            oxian::models::Vendor::MikroTik => "MikroTik",
-            oxian::models::Vendor::Juniper => "Juniper",
-            oxian::models::Vendor::Unknown => "Unknown",
+            Vendor::Cisco => "Cisco",
+            Vendor::MikroTik => "MikroTik",
+            Vendor::Juniper => "Juniper",
+            Vendor::Unknown => "Unknown",
         };
 
         println!("{} ({}) [{}]", name, ip, vendor);
