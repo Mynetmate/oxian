@@ -26,5 +26,7 @@ class Device(BaseModel):
     description: str | None = None
     vendor: Vendor = Vendor.Unknown
     interfaces: list[Interface] = Field(default_factory=list)
+    all_ips: list[str | IPv4Address | IPv6Address] = Field(default_factory=list)
     chassis_id: str | None = None
     is_managed: bool = True
+
