@@ -103,6 +103,12 @@ class TestEngineAsync(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(dict_result["devices"]), 3)
         self.assertEqual(len(dict_result["links"]), 2)
 
+    @patch("oxian_py.discovery.scanner.scan_one_device")
+    async def test_scan_seed_device_failure(self, mock_scan):
+        mock_scan.side_effect = TimeoutError("No SNMP response from 192.168.1.1")
+        with self.assertRaises(TimeoutError):
+            await scan("192.168.1.1")
+
 
 if __name__ == "__main__":
     unittest.main()

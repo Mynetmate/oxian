@@ -56,6 +56,8 @@ async def scan_device(
         except Exception as e:
             print(f"Failed to scan {current_ip}: {e}", file=sys.stderr)
             visited.add(str(current_ip))
+            if current_ip == ip_obj and not devices:
+                raise
             continue
 
         for neighbor in neighbors:
