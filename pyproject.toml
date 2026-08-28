@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oxian_py"
+version = "0.1.0"
+description = "Network Device and Topology Discovery Core in Python"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [
+    { name = "Oxian Team" }
+]
+dependencies = [
+    "pysnmp>=7.1.0",
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+]
+
+[tool.setuptools]
+packages = ["discovery", "models", "snmp", "vendor"]
+py-modules = ["__init__"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
