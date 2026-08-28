@@ -106,6 +106,15 @@ class SnmpClient:
                 column[(parts[-3], parts[-2], parts[-1])] = val
         return column
 
+    async def walk_cdp_column(self, oid_str: str) -> dict[tuple[int, int], Any]:
+        """Walk a CDP table column indexed by (ifIndex, entryIndex)."""
+        raw = await self.walk(oid_str)
+        column: dict[tuple[int, int], Any] = {}
+        for parts, val in raw:
+            if len(parts) >= 2:
+                column[(parts[-2], parts[-1])] = val
+        return column
+
     async def walk_raw(self, oid_str: str) -> list[tuple[tuple[int, ...], Any]]:
         """Alias for raw walk."""
         return await self.walk(oid_str)
