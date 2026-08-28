@@ -2,10 +2,10 @@ import unittest
 from unittest.mock import AsyncMock, patch
 from ipaddress import IPv4Address
 
-from discovery.engine import scan, scan_device, scan_network
-from discovery.scanner import scan_one_device
-import __init__ as oxian_py
-from models import (
+import oxian_py
+from oxian_py.discovery.engine import scan, scan_device, scan_network
+from oxian_py.discovery.scanner import scan_one_device
+from oxian_py.models import (
     DefaultRoute,
     Device,
     Interface,
@@ -16,7 +16,7 @@ from models import (
 
 
 class TestEngineAsync(unittest.IsolatedAsyncioTestCase):
-    @patch("discovery.scanner.scan_one_device")
+    @patch("oxian_py.discovery.scanner.scan_one_device")
     async def test_scan_single_device_with_neighbors(self, mock_scan):
         ip_core = IPv4Address("192.168.1.1")
         ip_branch = IPv4Address("192.168.1.2")

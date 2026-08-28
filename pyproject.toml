@@ -22,9 +22,9 @@ dev = [
     "pytest-asyncio>=0.23.0",
 ]
 
-[tool.setuptools]
-packages = ["discovery", "models", "snmp", "vendor"]
-py-modules = ["__init__"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["oxian_py*"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
