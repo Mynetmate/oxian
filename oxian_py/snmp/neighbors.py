@@ -13,16 +13,16 @@ def normalize_chassis_id(value: Any) -> str:
     if value is None:
         return ""
 
-    if isinstance(value, (bytes, bytearray)):
-        return value.hex().lower()
-
     try:
         raw_bytes = bytes(value)
-        # If binary MAC (6 bytes, non-ascii)
-        if len(raw_bytes) == 6 and not all(32 <= b <= 126 for b in raw_bytes):
+        # If binary MAC or chassis ID
+        if len(raw_bytes) in (6, 8) and not all(32 <= b <= 126 for b in raw_bytes):
             return raw_bytes.hex().lower()
     except Exception:
         pass
+
+    if isinstance(value, (bytes, bytearray)):
+        return value.hex().lower()
 
     s = str(value).strip()
     if s.startswith(("0x", "0X")):
@@ -35,18 +35,25 @@ def normalize_chassis_id(value: Any) -> str:
 
 
 def parse_remote_ip(value: Any) -> str | None:
-    """Parse remote management IP from LLDP management address octets."""
+    """Parse remote management IP from LLDP/CDP management address octets."""
     if value is None:
         return None
+
+    # Handle binary bytes or PySNMP OctetString
+    try:
+        raw_b = bytes(value)
+        if len(raw_b) == 4:
+            return f"{raw_b[0]}.{raw_b[1]}.{raw_b[2]}.{raw_b[3]}"
+        if len(raw_b) == 16:
+            return str(ipaddress.IPv6Address(raw_b))
+    except Exception:
+        pass
 
     val_str = str(value).strip()
     try:
         return str(ipaddress.ip_address(val_str))
     except ValueError:
         pass
-
-    if isinstance(value, (bytes, bytearray)) and len(value) == 4:
-        return f"{value[0]}.{value[1]}.{value[2]}.{value[3]}"
 
     clean = val_str.lower().removeprefix("0x")
     if len(clean) == 8:
