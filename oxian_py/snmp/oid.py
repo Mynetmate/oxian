@@ -77,7 +77,7 @@ def cdp_cache_platform() -> str:
 
 # Route Tables
 def ip_cidr_route_next_hop() -> str:
-    return "1.3.6.1.2.1.4.24.4.1.7"
+    return "1.3.6.1.2.1.4.24.4.1.4"
 
 
 def ip_route_next_hop() -> str:

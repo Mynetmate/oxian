@@ -18,3 +18,4 @@ class Link(BaseModel):
     target_hostname: str | None = None
     target_port_id: str = ""
     target_port_description: str | None = None
+    protocol: str = "lldp"

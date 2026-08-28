@@ -43,6 +43,28 @@ async def discover(
     return result.to_dict()
 
 
+async def discover_stream(
+    target: str | IPv4Address | IPv6Address,
+    port: int = 161,
+    community: str = "public",
+    timeout: int = 2,
+):
+    """Scan and discover network devices starting from the target seed IP address, yielding real-time events.
+
+    Args:
+        target: Seed device IP address (string or IPv4Address/IPv6Address).
+        port: SNMP UDP port (default: 161).
+        community: SNMP v2c community string (default: "public").
+        timeout: SNMP timeout in seconds (default: 2).
+
+    Yields:
+        JSON-serializable dictionary events.
+    """
+    ip = ip_address(str(target))
+    async for event in discovery.engine.scan_stream(ip, port=port, community=community, timeout=timeout):
+        yield event
+
+
 __version__ = "0.1.0"
 
 __all__ = [
@@ -52,6 +74,7 @@ __all__ = [
     "vendor",
     "scan",
     "discover",
+    "discover_stream",
     "scan_one_device",
     "resolve_topology",
     "DefaultRoute",

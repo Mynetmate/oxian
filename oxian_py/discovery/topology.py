@@ -22,6 +22,7 @@ def resolve_topology(
     devices: list[Device],
     neighbor_records: list[tuple[str | IPv4Address | IPv6Address, Neighbor]],
     default_routes: list[tuple[str | IPv4Address | IPv6Address, DefaultRoute]],
+    duration_ms: int | None = None,
 ) -> DiscoveryResult:
     """Resolve physical links, inferred unmanaged nodes, and WAN gateways into a topology graph.
 
@@ -29,6 +30,7 @@ def resolve_topology(
         devices: Discovered managed network devices.
         neighbor_records: Discovered LLDP/CDP neighbor relationships.
         default_routes: Discovered default routes (0.0.0.0/0).
+        duration_ms: Total discovery execution time in milliseconds.
 
     Returns:
         DiscoveryResult containing complete device list, resolved links, and unresolved neighbors.
@@ -54,6 +56,7 @@ def resolve_topology(
         devices=devices_list,
         links=links,
         unresolved_neighbors=unresolved_neighbors,
+        duration_ms=duration_ms,
     )
 
 
@@ -186,6 +189,7 @@ def _resolve_lldp_neighbors(
                     target_hostname=target_device.hostname,
                     target_port_id=neighbor.remote_port_id,
                     target_port_description=neighbor.remote_port_description,
+                    protocol="lldp",
                 )
             )
 
@@ -196,21 +200,45 @@ def _resolve_default_routes(
     links: list[Link],
 ) -> None:
     # Phase 1: Add default gateway nodes if not already known
-    for _, route in default_routes:
-        is_already_known = any(_same_ip(d.ip, route.next_hop) for d in devices)
-        if is_already_known:
-            continue
+    for source_ip, route in default_routes:
+        source_device = next((d for d in devices if _same_ip(d.ip, source_ip)), None)
+        source_interface = None
+        if source_device is not None:
+            for inf in source_device.interfaces:
+                if inf.index == route.local_interface:
+                    source_interface = inf.description
+                    break
 
-        gateway_device = Device(
-            ip=route.next_hop,
-            hostname="Default Gateway",
-            description="Discovered via Default Route (0.0.0.0/0)",
-            vendor=Vendor.Unknown,
-            interfaces=[],
-            chassis_id=None,
-            is_managed=False,
-        )
-        devices.append(gateway_device)
+        has_valid_ip = bool(route.next_hop) and str(route.next_hop) not in ("0.0.0.0", "127.0.0.1")
+
+        if has_valid_ip:
+            is_already_known = any(_same_ip(d.ip, route.next_hop) for d in devices)
+            if not is_already_known:
+                gateway_device = Device(
+                    ip=route.next_hop,
+                    hostname="Default Gateway",
+                    description=f"Discovered via Default Route (0.0.0.0/0 Next-Hop {route.next_hop})",
+                    vendor=Vendor.Unknown,
+                    interfaces=[],
+                    chassis_id=None,
+                    is_managed=False,
+                )
+                devices.append(gateway_device)
+        else:
+            # Interface-only / Direct-attached default route
+            gw_name = f"WAN Gateway ({source_interface})" if source_interface else "WAN Gateway"
+            is_already_known = any(d.hostname == gw_name and d.ip is None for d in devices)
+            if not is_already_known:
+                gateway_device = Device(
+                    ip=None,
+                    hostname=gw_name,
+                    description=f"Discovered via Interface Route (0.0.0.0/0 via {source_interface or 'interface'})",
+                    vendor=Vendor.Unknown,
+                    interfaces=[],
+                    chassis_id=None,
+                    is_managed=False,
+                )
+                devices.append(gateway_device)
 
     # Phase 2: Create default route links
     for source_ip, route in default_routes:
@@ -224,7 +252,15 @@ def _resolve_default_routes(
                 source_interface = inf.description
                 break
 
-        target_device = next((d for d in devices if _same_ip(d.ip, route.next_hop)), None)
+        has_valid_ip = bool(route.next_hop) and str(route.next_hop) not in ("0.0.0.0", "127.0.0.1")
+        if has_valid_ip:
+            target_device = next((d for d in devices if _same_ip(d.ip, route.next_hop)), None)
+            desc = f"0.0.0.0/0 Next-Hop ({route.next_hop})"
+        else:
+            gw_name = f"WAN Gateway ({source_interface})" if source_interface else "WAN Gateway"
+            target_device = next((d for d in devices if d.hostname == gw_name and d.ip is None), None)
+            desc = f"0.0.0.0/0 Direct Interface ({source_interface or 'interface'})"
+
         if target_device is None:
             continue
 
@@ -246,6 +282,7 @@ def _resolve_default_routes(
                     target_chassis_id=target_device.chassis_id,
                     target_hostname=target_device.hostname,
                     target_port_id=port_id,
-                    target_port_description="0.0.0.0/0 Next-Hop",
+                    target_port_description=desc,
+                    protocol="default_route",
                 )
             )

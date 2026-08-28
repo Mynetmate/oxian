@@ -9,5 +9,5 @@ class DefaultRoute(BaseModel):
 
     model_config = ConfigDict(arbitrary_types_allowed=True, use_enum_values=True)
 
-    next_hop: str | IPv4Address | IPv6Address
-    local_interface: int
+    next_hop: str | IPv4Address | IPv6Address | None = None
+    local_interface: int = 0

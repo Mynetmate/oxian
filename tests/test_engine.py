@@ -103,6 +103,21 @@ class TestEngineAsync(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(dict_result["devices"]), 3)
         self.assertEqual(len(dict_result["links"]), 2)
 
+        # Test discover_stream() yielding events
+        stream_events = []
+        async for event in oxian_py.discover_stream("192.168.1.1"):
+            stream_events.append(event)
+
+        event_types = [e["event"] for e in stream_events]
+        self.assertIn("start", event_types)
+        self.assertIn("scanning", event_types)
+        self.assertIn("node_discovered", event_types)
+        self.assertIn("complete", event_types)
+
+        final_event = stream_events[-1]
+        self.assertEqual(final_event["event"], "complete")
+        self.assertEqual(len(final_event["result"]["devices"]), 3)
+
     @patch("oxian_py.discovery.scanner.scan_one_device")
     async def test_scan_seed_device_failure(self, mock_scan):
         mock_scan.side_effect = TimeoutError("No SNMP response from 192.168.1.1")
@@ -112,3 +127,4 @@ class TestEngineAsync(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
