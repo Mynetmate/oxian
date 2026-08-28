@@ -12,6 +12,7 @@ from ..snmp import (
     get_default_route,
     get_device_info,
     get_device_interface,
+    get_device_ip_addresses,
     get_local_chassis_id,
 )
 from ..vendor import detect_vendor
@@ -51,6 +52,9 @@ async def scan_one_device(
             raise TimeoutError(f"No SNMP response from {ip}")
 
         interfaces = await get_device_interface(client)
+        all_ips = await get_device_ip_addresses(client)
+        if str(ip) not in all_ips:
+            all_ips.insert(0, str(ip))
         chassis_id = await get_local_chassis_id(client)
         neighbors = await discover_neighbors(client)
         default_route = await get_default_route(client)
@@ -63,10 +67,12 @@ async def scan_one_device(
             description=sys_info.description,
             vendor=vendor,
             interfaces=interfaces,
+            all_ips=all_ips,
             chassis_id=chassis_id,
             is_managed=True,
         )
 
         return device, neighbors, default_route
+
     finally:
         client.close()

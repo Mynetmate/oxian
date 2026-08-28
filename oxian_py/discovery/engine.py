@@ -39,6 +39,13 @@ async def scan(
         return await scan_device(ip, port=port, community=community, timeout=timeout)
 
 
+def is_scannable_ip(ip_obj: IPv4Address | IPv6Address) -> bool:
+    """Check if an IP address is valid and routable for SNMP discovery."""
+    if ip_obj.is_link_local or ip_obj.is_multicast or ip_obj.is_loopback or ip_obj.is_unspecified:
+        return False
+    return True
+
+
 async def scan_device(
     ip: str | IPv4Address | IPv6Address,
     port: int = 161,
@@ -94,13 +101,16 @@ async def scan_device(
             if neighbor.remote_ip is not None:
                 try:
                     remote_ip_obj = ip_address(str(neighbor.remote_ip))
-                    if str(remote_ip_obj) not in visited:
+                    if is_scannable_ip(remote_ip_obj) and str(remote_ip_obj) not in visited:
                         queue.append(remote_ip_obj)
                 except ValueError:
                     pass
 
         visited.add(str(current_ip))
+        for dev_ip in getattr(device, "all_ips", []):
+            visited.add(str(dev_ip))
         devices.append(device)
+
 
     duration_ms = round((time.perf_counter() - start_time) * 1000)
     return topology.resolve_topology(
@@ -175,24 +185,28 @@ async def scan_stream(
             if neighbor.remote_ip is not None:
                 try:
                     remote_ip_obj = ip_address(str(neighbor.remote_ip))
-                    if str(remote_ip_obj) not in visited:
+                    if is_scannable_ip(remote_ip_obj) and str(remote_ip_obj) not in visited:
                         queue.append(remote_ip_obj)
                 except ValueError:
                     pass
 
         visited.add(str(current_ip))
+        for dev_ip in getattr(device, "all_ips", []):
+            visited.add(str(dev_ip))
         devices.append(device)
 
+
         current_duration = round((time.perf_counter() - start_time) * 1000)
-        current_topology = topology.resolve_topology(
+        intermediate_topology = topology.resolve_topology(
             devices, neighbor_records, default_route_records, duration_ms=current_duration
         )
 
         yield {
             "event": "node_discovered",
             "device": device.model_dump(mode="json"),
-            "snapshot": current_topology.to_dict(),
+            "snapshot": intermediate_topology.to_dict(),
         }
+
 
     duration_ms = round((time.perf_counter() - start_time) * 1000)
     final_topology = topology.resolve_topology(
