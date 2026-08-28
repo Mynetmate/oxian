@@ -54,4 +54,25 @@ async def get_default_route(client: SnmpClient) -> DefaultRoute | None:
             local_interface=local_interface,
         )
 
+    # 2. Fallback to RFC 1213 ipRouteTable (1.3.6.1.2.1.4.21.1.7.0.0.0.0)
+    try:
+        val = await client.get(oid.ip_route_next_hop() + ".0.0.0.0")
+        if val is not None:
+            val_str = str(val).strip()
+            next_hop = None
+            try:
+                next_hop = str(ipaddress.ip_address(val_str))
+            except ValueError:
+                next_hop = val_str
+
+            if_val = await client.get(oid.ip_route_if_index() + ".0.0.0.0")
+            local_if = int(if_val) if if_val is not None else 0
+
+            return DefaultRoute(
+                next_hop=next_hop,
+                local_interface=local_if,
+            )
+    except Exception:
+        pass
+
     return None

@@ -72,14 +72,15 @@ async def get_local_chassis_id(client: SnmpClient) -> str | None:
 
 
 async def discover_neighbors(client: SnmpClient) -> list[Neighbor]:
-    """Discover all LLDP neighbor adjacencies from target device."""
+    """Discover LLDP and CDP neighbor adjacencies from target device."""
+    neighbors: list[Neighbor] = []
+
+    # 1. LLDP Discovery
     hostnames = await client.walk_lldp_column(oid.lldp_rem_sys_name())
     ports = await client.walk_lldp_column(oid.lldp_rem_port_id())
     port_descriptions = await client.walk_lldp_column(oid.lldp_rem_port_description())
     addresses = await client.walk_lldp_column(oid.lldp_rem_man_addr())
     chassis_ids = await client.walk_lldp_column(oid.lldp_rem_chassis_id())
-
-    neighbors: list[Neighbor] = []
 
     for index, chassis_id in chassis_ids.items():
         hostname = hostnames.get(index)
@@ -99,5 +100,42 @@ async def discover_neighbors(client: SnmpClient) -> list[Neighbor]:
                 local_interface=index[1],
             )
         )
+
+    # 2. CDP Discovery (Cisco Discovery Protocol)
+    cdp_device_ids = await client.walk_cdp_column(oid.cdp_cache_device_id())
+    if cdp_device_ids:
+        cdp_ports = await client.walk_cdp_column(oid.cdp_cache_device_port())
+        cdp_addresses = await client.walk_cdp_column(oid.cdp_cache_address())
+        cdp_platforms = await client.walk_cdp_column(oid.cdp_cache_platform())
+
+        for index, device_id in cdp_device_ids.items():
+            if_index, _ = index
+            port = cdp_ports.get(index)
+            address = cdp_addresses.get(index)
+            platform = cdp_platforms.get(index)
+
+            remote_ip = parse_remote_ip(address)
+            dev_name = str(device_id).strip() if device_id is not None else None
+
+            # Deduplicate if already discovered by LLDP on same local interface
+            already_exists = any(
+                n.local_interface == if_index
+                and (
+                    (dev_name and n.hostname == dev_name)
+                    or (remote_ip and n.remote_ip == remote_ip)
+                )
+                for n in neighbors
+            )
+            if not already_exists:
+                neighbors.append(
+                    Neighbor(
+                        chassis_id="",
+                        remote_port_id=str(port) if port is not None else "",
+                        remote_port_description=str(platform) if platform is not None else None,
+                        hostname=dev_name,
+                        remote_ip=remote_ip,
+                        local_interface=if_index,
+                    )
+                )
 
     return neighbors
