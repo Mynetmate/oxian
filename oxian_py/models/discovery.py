@@ -9,11 +9,14 @@ from .neighbor import UnresolvedNeighbor
 
 
 class DiscoveryResult(BaseModel):
+    """Aggregate result of a network topology and device discovery scan."""
+
     model_config = ConfigDict(arbitrary_types_allowed=True, use_enum_values=True)
 
-    devices: list[Device] = Field(default_factory=list)
-    links: list[Link] = Field(default_factory=list)
-    unresolved_neighbors: list[UnresolvedNeighbor] = Field(default_factory=list)
+    devices: list[Device] = Field(default_factory=list, description="All discovered network devices (managed & inferred)")
+    links: list[Link] = Field(default_factory=list, description="All resolved physical/logical links between nodes")
+    unresolved_neighbors: list[UnresolvedNeighbor] = Field(default_factory=list, description="Discovered neighbors that could not be fully resolved")
 
     def to_dict(self) -> dict[str, Any]:
+        """Convert discovery results into a JSON-serializable dictionary."""
         return self.model_dump(mode="json")

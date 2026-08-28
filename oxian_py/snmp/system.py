@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 from . import oid
 from .client import SnmpClient
@@ -9,12 +8,15 @@ from .client import SnmpClient
 
 @dataclass
 class SystemInfo:
-    hostname: Optional[str] = None
-    description: Optional[str] = None
-    object_id: Optional[str] = None
+    """SNMP System MIB-II summary."""
+
+    hostname: str | None = None
+    description: str | None = None
+    object_id: str | None = None
 
 
 async def get_device_info(client: SnmpClient) -> SystemInfo:
+    """Query system name, description, and sysObjectID from target device."""
     sys_name = await client.get(oid.sys_name())
     sys_descr = await client.get(oid.sys_descr())
     sys_object_id = await client.get(oid.sys_object_id())

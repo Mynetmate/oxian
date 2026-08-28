@@ -1,17 +1,14 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
-try:
-    from ..models.interface import Interface, InterfaceStatus
-except (ImportError, ValueError):
-    from models.interface import Interface, InterfaceStatus
-
+from ..models.interface import Interface, InterfaceStatus
 from . import oid
 from .client import SnmpClient
 
 
-def parse_mac(value: Any) -> Optional[str]:
+def parse_mac(value: Any) -> str | None:
+    """Parse MAC address from bytes, hex string, or OctetString."""
     if value is None:
         return None
 
@@ -34,7 +31,7 @@ def parse_mac(value: Any) -> Optional[str]:
         pass
 
     raw = str(value).strip()
-    if raw.startswith("0x") or raw.startswith("0X"):
+    if raw.startswith(("0x", "0X")):
         hex_str = raw[2:]
     else:
         hex_str = raw
@@ -54,7 +51,8 @@ def parse_mac(value: Any) -> Optional[str]:
     return ":".join(clean_hex[i : i + 2].upper() for i in range(0, 12, 2))
 
 
-def value_to_u32(value: Any) -> Optional[int]:
+def value_to_u32(value: Any) -> int | None:
+    """Convert SNMP integer/counter value to unsigned 32-bit integer."""
     if value is None:
         return None
     try:
@@ -67,6 +65,7 @@ def value_to_u32(value: Any) -> Optional[int]:
 
 
 async def get_device_interface(client: SnmpClient) -> list[Interface]:
+    """Retrieve and build Interface models for all network ports via ifTable."""
     descriptions = await client.walk_column(oid.if_descr())
     macs = await client.walk_column(oid.if_phys_address())
     admin_status = await client.walk_column(oid.if_admin_status())

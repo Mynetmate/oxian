@@ -1,44 +1,44 @@
 from __future__ import annotations
 
 from ipaddress import IPv4Address, IPv6Address
-from typing import Optional, Union
 
-try:
-    from ..models.device import Device
-    from ..models.neighbor import Neighbor
-    from ..models.route import DefaultRoute
-    from ..snmp import (
-        SnmpClient,
-        connect,
-        discover_neighbors,
-        get_default_route,
-        get_device_info,
-        get_device_interface,
-        get_local_chassis_id,
-    )
-    from ..vendor import detect_vendor
-except (ImportError, ValueError):
-    from models.device import Device
-    from models.neighbor import Neighbor
-    from models.route import DefaultRoute
-    from snmp import (
-        SnmpClient,
-        connect,
-        discover_neighbors,
-        get_default_route,
-        get_device_info,
-        get_device_interface,
-        get_local_chassis_id,
-    )
-    from vendor import detect_vendor
+from ..models.device import Device
+from ..models.neighbor import Neighbor
+from ..models.route import DefaultRoute
+from ..snmp import (
+    SnmpClient,
+    connect,
+    discover_neighbors,
+    get_default_route,
+    get_device_info,
+    get_device_interface,
+    get_local_chassis_id,
+)
+from ..vendor import detect_vendor
 
 
 async def scan_one_device(
-    ip: Union[str, IPv4Address, IPv6Address],
+    ip: str | IPv4Address | IPv6Address,
     port: int = 161,
     community: str = "public",
     timeout: int = 2,
-) -> tuple[Device, list[Neighbor], Optional[DefaultRoute]]:
+) -> tuple[Device, list[Neighbor], DefaultRoute | None]:
+    """Scan a single network device via SNMP.
+
+    Queries system info, interfaces, chassis ID, LLDP neighbors, and default route.
+
+    Args:
+        ip: Target device IP address.
+        port: SNMP UDP port (default: 161).
+        community: SNMP v2c community string (default: "public").
+        timeout: Timeout in seconds (default: 2).
+
+    Returns:
+        Tuple containing (Device, list of Neighbor, DefaultRoute or None).
+
+    Raises:
+        TimeoutError: If the target device does not respond to SNMP queries.
+    """
     client: SnmpClient = await connect(ip, port=port, community=community, timeout=timeout)
     try:
         sys_info = await get_device_info(client)

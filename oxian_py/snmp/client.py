@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from ipaddress import IPv4Address, IPv6Address
-from typing import Any, Optional, Union
+from typing import Any
 
 from pysnmp.hlapi.v1arch.asyncio import ObjectIdentity, ObjectType, Slim
 
 
 class SnmpClient:
+    """Async SNMP v2c client using PySNMP v1arch / Slim."""
+
     def __init__(
         self,
         host: str,
@@ -20,17 +22,18 @@ class SnmpClient:
         self.community = community
         self.timeout = timeout
         self.retries = retries
-        self._slim: Optional[Slim] = None
+        self._slim: Slim | None = None
 
     def _get_slim(self) -> Slim:
         if self._slim is None:
             self._slim = Slim(2)
         return self._slim
 
-    async def get(self, oid_str: str) -> Optional[Any]:
+    async def get(self, oid_str: str) -> Any | None:
+        """Perform SNMP GET query for a specific OID."""
         slim = self._get_slim()
         try:
-            err_ind, err_status, err_index, var_binds = await slim.get(
+            err_ind, err_status, _, var_binds = await slim.get(
                 self.community,
                 self.host,
                 self.port,
@@ -45,6 +48,7 @@ class SnmpClient:
             return None
 
     async def walk(self, oid_str: str) -> list[tuple[tuple[int, ...], Any]]:
+        """Perform SNMP NEXT walk starting from an OID prefix."""
         target_prefix = tuple(int(x) for x in oid_str.strip(".").split(".") if x)
         slim = self._get_slim()
         current_oid = oid_str
@@ -52,7 +56,7 @@ class SnmpClient:
 
         while True:
             try:
-                err_ind, err_status, err_index, var_binds = await slim.next(
+                err_ind, err_status, _, var_binds = await slim.next(
                     self.community,
                     self.host,
                     self.port,
@@ -85,6 +89,7 @@ class SnmpClient:
         return results
 
     async def walk_column(self, oid_str: str) -> dict[int, Any]:
+        """Walk a table column indexed by a single integer index."""
         raw = await self.walk(oid_str)
         column: dict[int, Any] = {}
         for parts, val in raw:
@@ -93,6 +98,7 @@ class SnmpClient:
         return column
 
     async def walk_lldp_column(self, oid_str: str) -> dict[tuple[int, int, int], Any]:
+        """Walk an LLDP table column indexed by (time_mark, local_port_num, rem_index)."""
         raw = await self.walk(oid_str)
         column: dict[tuple[int, int, int], Any] = {}
         for parts, val in raw:
@@ -101,9 +107,11 @@ class SnmpClient:
         return column
 
     async def walk_raw(self, oid_str: str) -> list[tuple[tuple[int, ...], Any]]:
+        """Alias for raw walk."""
         return await self.walk(oid_str)
 
     def close(self) -> None:
+        """Close client connection."""
         if self._slim is not None:
             self._slim.close()
             self._slim = None
@@ -116,12 +124,12 @@ class SnmpClient:
 
 
 async def connect(
-    ip: Union[str, IPv4Address, IPv6Address],
+    ip: str | IPv4Address | IPv6Address,
     port: int = 161,
     community: str = "public",
     timeout: int = 2,
     retries: int = 0,
 ) -> SnmpClient:
+    """Create and return an SNMP client for the specified target host."""
     host_str = str(ip)
-    client = SnmpClient(host=host_str, port=port, community=community, timeout=timeout, retries=retries)
-    return client
+    return SnmpClient(host=host_str, port=port, community=community, timeout=timeout, retries=retries)
