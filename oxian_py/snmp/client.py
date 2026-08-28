@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import ipaddress
 from ipaddress import IPv4Address, IPv6Address
 from typing import Any
 
 from pysnmp.hlapi.v1arch.asyncio import ObjectIdentity, ObjectType, Slim
+
+from . import oid
+
 
 
 class SnmpClient:
@@ -121,7 +125,43 @@ class SnmpClient:
                 column[(parts[-3], parts[-2], parts[-1])] = val
         return column
 
+    async def walk_lldp_man_addr(self) -> dict[tuple[int, int, int], str]:
+        """Walk lldpRemManAddrTable and extract remote management IP."""
+        raw = await self.walk(oid.lldp_rem_man_addr_table())
+        result: dict[tuple[int, int, int], str] = {}
+
+        for parts, val in raw:
+            # Format A: Cisco / Standard OID encoded suffix (length >= 16)
+            if len(parts) >= 16:
+                time_mark = parts[11]
+                local_port = parts[12]
+                rem_index = parts[13]
+                subtype = parts[14]
+                length = parts[15]
+                addr_parts = parts[16 : 16 + length]
+                if subtype == 1 and len(addr_parts) == 4:
+                    result[(time_mark, local_port, rem_index)] = f"{addr_parts[0]}.{addr_parts[1]}.{addr_parts[2]}.{addr_parts[3]}"
+                elif subtype == 2 and len(addr_parts) == 16:
+                    try:
+                        result[(time_mark, local_port, rem_index)] = str(ipaddress.IPv6Address(bytes(addr_parts)))
+                    except Exception:
+                        pass
+            # Format B: MikroTik / Direct value format (column .2 with 3-part suffix)
+            elif len(parts) >= 14 and val is not None:
+                time_mark = parts[11]
+                local_port = parts[12]
+                rem_index = parts[13]
+                val_str = str(val).strip()
+                try:
+                    ip_obj = ipaddress.ip_address(val_str)
+                    result[(time_mark, local_port, rem_index)] = str(ip_obj)
+                except ValueError:
+                    pass
+        return result
+
+
     async def walk_cdp_column(self, oid_str: str) -> dict[tuple[int, int], Any]:
+
         """Walk a CDP table column indexed by (ifIndex, entryIndex)."""
         raw = await self.walk(oid_str)
         column: dict[tuple[int, int], Any] = {}

@@ -15,6 +15,8 @@ class Neighbor(BaseModel):
     hostname: str | None = None
     remote_ip: str | IPv4Address | IPv6Address | None = None
     local_interface: int = 0
+    protocol: str = "lldp"
+
 
 
 class UnresolvedNeighbor(BaseModel):

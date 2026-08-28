@@ -67,13 +67,17 @@ def value_to_u32(value: Any) -> int | None:
 async def get_device_interface(client: SnmpClient) -> list[Interface]:
     """Retrieve and build Interface models for all network ports via ifTable."""
     descriptions = await client.walk_column(oid.if_descr())
+    names = await client.walk_column(oid.if_name())
     macs = await client.walk_column(oid.if_phys_address())
     admin_status = await client.walk_column(oid.if_admin_status())
     oper_status = await client.walk_column(oid.if_oper_status())
 
     interfaces: list[Interface] = []
 
-    for index, description in descriptions.items():
+    all_indices = sorted(set(descriptions.keys()) | set(names.keys()) | set(macs.keys()))
+
+    for index in all_indices:
+        description = names.get(index) or descriptions.get(index)
         mac_raw = macs.get(index)
         admin_raw = admin_status.get(index)
         oper_raw = oper_status.get(index)
@@ -99,5 +103,24 @@ async def get_device_interface(client: SnmpClient) -> list[Interface]:
         )
         interfaces.append(interface)
 
+
     interfaces.sort(key=lambda inf: inf.index)
     return interfaces
+
+
+async def get_device_ip_addresses(client: SnmpClient) -> list[str]:
+    """Retrieve all IPv4 addresses configured on the device from IP-MIB ipAddrTable."""
+    try:
+        rows = await client.walk_raw(oid.ip_ad_ent_if_index())
+        ips: list[str] = []
+        for oid_parts, _ in rows:
+            if len(oid_parts) >= 4:
+                ip_parts = oid_parts[-4:]
+                ip_str = ".".join(str(p) for p in ip_parts)
+                if ip_str not in ("0.0.0.0", "127.0.0.1") and not ip_str.startswith("127."):
+                    if ip_str not in ips:
+                        ips.append(ip_str)
+        return ips
+    except Exception:
+        return []
+

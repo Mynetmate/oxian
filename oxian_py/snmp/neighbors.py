@@ -34,7 +34,33 @@ def normalize_chassis_id(value: Any) -> str:
     return s.lower()
 
 
+def parse_port_id(value: Any) -> str:
+    """Parse port ID from SNMP octets into printable ASCII string or MAC address."""
+    if value is None:
+        return ""
+
+    try:
+        raw_b = bytes(value)
+        if len(raw_b) == 6 and not all(32 <= b <= 126 for b in raw_b):
+            return ":".join(f"{b:02X}" for b in raw_b)
+    except Exception:
+        pass
+
+    s = str(value).strip()
+    if all(32 <= ord(c) <= 126 for c in s):
+        return s
+
+    try:
+        raw_b = bytes(value)
+        if len(raw_b) == 6:
+            return ":".join(f"{b:02X}" for b in raw_b)
+        return raw_b.hex().lower()
+    except Exception:
+        return s
+
+
 def parse_remote_ip(value: Any) -> str | None:
+
     """Parse remote management IP from LLDP/CDP management address octets."""
     if value is None:
         return None
@@ -86,7 +112,7 @@ async def discover_neighbors(client: SnmpClient) -> list[Neighbor]:
     hostnames = await client.walk_lldp_column(oid.lldp_rem_sys_name())
     ports = await client.walk_lldp_column(oid.lldp_rem_port_id())
     port_descriptions = await client.walk_lldp_column(oid.lldp_rem_port_description())
-    addresses = await client.walk_lldp_column(oid.lldp_rem_man_addr())
+    addresses = await client.walk_lldp_man_addr()
     chassis_ids = await client.walk_lldp_column(oid.lldp_rem_chassis_id())
 
     for index, chassis_id in chassis_ids.items():
@@ -95,16 +121,18 @@ async def discover_neighbors(client: SnmpClient) -> list[Neighbor]:
         port_description = port_descriptions.get(index)
         address = addresses.get(index)
 
-        remote_ip = parse_remote_ip(address)
+        remote_ip = parse_remote_ip(address) if address else None
+
 
         neighbors.append(
             Neighbor(
                 chassis_id=normalize_chassis_id(chassis_id),
-                remote_port_id=str(port) if port is not None else "",
+                remote_port_id=parse_port_id(port),
                 remote_port_description=str(port_description) if port_description is not None else None,
                 hostname=str(hostname) if hostname is not None else None,
                 remote_ip=remote_ip,
                 local_interface=index[1],
+                protocol="lldp",
             )
         )
 
@@ -137,12 +165,15 @@ async def discover_neighbors(client: SnmpClient) -> list[Neighbor]:
                 neighbors.append(
                     Neighbor(
                         chassis_id="",
-                        remote_port_id=str(port) if port is not None else "",
+                        remote_port_id=parse_port_id(port),
                         remote_port_description=str(platform) if platform is not None else None,
                         hostname=dev_name,
                         remote_ip=remote_ip,
                         local_interface=if_index,
+                        protocol="cdp",
                     )
                 )
 
     return neighbors
+
+
