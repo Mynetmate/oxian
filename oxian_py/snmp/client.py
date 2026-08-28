@@ -43,15 +43,19 @@ class SnmpClient:
             )
             if err_ind or err_status or not var_binds:
                 return None
-            return var_binds[0][1]
+            val = var_binds[0][1]
+            if type(val).__name__ in ("EndOfMibView", "NoSuchObject", "NoSuchInstance"):
+                return None
+            return val
         except Exception:
             return None
 
     async def walk(self, oid_str: str) -> list[tuple[tuple[int, ...], Any]]:
-        """Perform SNMP NEXT walk starting from an OID prefix."""
+        """Perform SNMP NEXT walk starting from an OID prefix with infinite loop prevention."""
         target_prefix = tuple(int(x) for x in oid_str.strip(".").split(".") if x)
         slim = self._get_slim()
         current_oid = oid_str
+        last_parts: tuple[int, ...] = ()
         results: list[tuple[tuple[int, ...], Any]] = []
 
         while True:
@@ -75,11 +79,22 @@ class SnmpClient:
                 oid_obj = var_bind[0]
                 val = var_bind[1]
 
+                # Check for PySNMP sentinel types indicating end of data
+                if type(val).__name__ in ("EndOfMibView", "NoSuchObject", "NoSuchInstance"):
+                    return results
+
                 oid_parts = tuple(int(x) for x in str(oid_obj).strip(".").split(".") if x)
+
+                # Prevent infinite loops: must strictly advance in MIB tree
+                if last_parts and oid_parts <= last_parts:
+                    return results
+
+                # Check if still within prefix
                 if len(oid_parts) < len(target_prefix) or oid_parts[: len(target_prefix)] != target_prefix:
                     return results
 
                 results.append((oid_parts, val))
+                last_parts = oid_parts
                 current_oid = ".".join(str(x) for x in oid_parts)
                 found_any = True
 
