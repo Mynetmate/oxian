@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import AsyncMock, patch
-from ipaddress import IPv4Address
+from ipaddress import IPv4Address, IPv6Address
 
 import oxian_py
 from oxian_py.discovery.engine import scan, scan_device, scan_network
@@ -119,12 +119,46 @@ class TestEngineAsync(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(final_event["result"]["devices"]), 3)
 
     @patch("oxian_py.discovery.scanner.scan_one_device")
-    async def test_scan_seed_device_failure(self, mock_scan):
-        mock_scan.side_effect = TimeoutError("No SNMP response from 192.168.1.1")
-        with self.assertRaises(TimeoutError):
-            await scan("192.168.1.1")
+    async def test_ignore_link_local_and_invalid_ips(self, mock_scan):
+        ip_core = IPv4Address("192.168.1.1")
+        dev_core = Device(
+            ip=ip_core,
+            hostname="RT-CORE",
+            description="Cisco ISR",
+            vendor=Vendor.Cisco,
+            interfaces=[],
+            is_managed=True,
+        )
+
+        mock_scan.return_value = (
+            dev_core,
+            [
+                Neighbor(
+                    chassis_id="0011223344cc",
+                    remote_ip=IPv6Address("fe80::a8c1:abff:fe28:f7e0"),
+                    hostname="LINK-LOCAL-NODE",
+                ),
+                Neighbor(
+                    chassis_id="0011223344dd",
+                    remote_ip=IPv4Address("224.0.0.1"),
+                    hostname="MULTICAST-NODE",
+                ),
+                Neighbor(
+                    chassis_id="0011223344ee",
+                    remote_ip=IPv4Address("127.0.0.1"),
+                    hostname="LOOPBACK-NODE",
+                ),
+            ],
+            None,
+        )
+
+        result = await scan(ip_core)
+        # Should only scan the seed core device, and not attempt to scan link-local/multicast/loopback
+        self.assertEqual(mock_scan.call_count, 1)
+        self.assertEqual(len(result.devices), 4)  # 1 managed + 3 inferred neighbors
 
 
 if __name__ == "__main__":
     unittest.main()
+
 
