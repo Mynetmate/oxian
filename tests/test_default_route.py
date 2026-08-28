@@ -163,6 +163,40 @@ class TestDefaultRoute(unittest.TestCase):
 
         self.assertEqual(len(result.links), 2)
 
+    def test_resolve_topology_with_interface_only_default_gateway(self):
+        ip_router = IPv4Address("192.168.1.1")
+        router = Device(
+            ip=ip_router,
+            hostname="Mikrotik-Edge",
+            description="RouterOS",
+            vendor=Vendor.MikroTik,
+            interfaces=[create_test_interface(2, "ether2")],
+            chassis_id="0011223344cc",
+            is_managed=True,
+        )
+
+        # Direct-attached / Interface-only route (gateway=ether2)
+        default_routes = [
+            (
+                ip_router,
+                DefaultRoute(
+                    next_hop=None,
+                    local_interface=2,
+                ),
+            )
+        ]
+
+        result = resolve_topology([router], [], default_routes, duration_ms=42)
+
+        self.assertEqual(len(result.devices), 2)
+        gateway = next(d for d in result.devices if not d.is_managed)
+        self.assertEqual(gateway.hostname, "WAN Gateway (ether2)")
+        self.assertIsNone(gateway.ip)
+        self.assertEqual(len(result.links), 1)
+        self.assertEqual(result.links[0].protocol, "default_route")
+        self.assertEqual(result.links[0].source_interface, "ether2")
+        self.assertEqual(result.duration_ms, 42)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -16,6 +16,7 @@ class DiscoveryResult(BaseModel):
     devices: list[Device] = Field(default_factory=list, description="All discovered network devices (managed & inferred)")
     links: list[Link] = Field(default_factory=list, description="All resolved physical/logical links between nodes")
     unresolved_neighbors: list[UnresolvedNeighbor] = Field(default_factory=list, description="Discovered neighbors that could not be fully resolved")
+    duration_ms: int | None = Field(default=None, description="Total discovery duration in milliseconds")
 
     def to_dict(self) -> dict[str, Any]:
         """Convert discovery results into a JSON-serializable dictionary."""
