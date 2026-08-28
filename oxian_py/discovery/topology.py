@@ -61,27 +61,51 @@ def resolve_topology(
 
 
 def _matches_neighbor(device: Device, neighbor: Neighbor) -> bool:
-    has_chassis_match = (
-        bool(neighbor.chassis_id)
-        and device.chassis_id is not None
-        and device.chassis_id == neighbor.chassis_id
-    )
-    has_ip_match = (
-        neighbor.remote_ip is not None
-        and _same_ip(device.ip, neighbor.remote_ip)
-    )
-    has_hostname_match = (
-        neighbor.hostname is not None
-        and device.hostname is not None
-        and device.hostname == neighbor.hostname
-    )
-    return has_chassis_match or has_ip_match or has_hostname_match
+    if neighbor.chassis_id:
+        norm_n_chassis = neighbor.chassis_id.replace(":", "").replace("-", "").lower()
+        if device.chassis_id:
+            norm_d_chassis = device.chassis_id.replace(":", "").replace("-", "").lower()
+            if norm_d_chassis == norm_n_chassis:
+                return True
+        for inf in device.interfaces:
+            if inf.mac_address:
+                norm_mac = inf.mac_address.replace(":", "").replace("-", "").lower()
+                if norm_mac == norm_n_chassis:
+                    return True
+
+    if neighbor.remote_ip is not None:
+        if _same_ip(device.ip, neighbor.remote_ip):
+            return True
+        if any(_same_ip(dev_ip, neighbor.remote_ip) for dev_ip in getattr(device, "all_ips", [])):
+            return True
+
+    if neighbor.hostname and device.hostname:
+        if device.hostname.lower() == neighbor.hostname.lower():
+            return True
+
+    return False
+
 
 
 def _find_target_device(devices: list[Device], neighbor: Neighbor) -> Device | None:
     for device in devices:
         if _matches_neighbor(device, neighbor):
             return device
+    return None
+
+
+def _find_device_by_ip(
+    devices: list[Device],
+    target_ip: str | IPv4Address | IPv6Address | None,
+) -> Device | None:
+    if target_ip is None:
+        return None
+    for d in devices:
+        if _same_ip(d.ip, target_ip):
+            return d
+        for dev_ip in getattr(d, "all_ips", []):
+            if _same_ip(dev_ip, target_ip):
+                return d
     return None
 
 
@@ -189,9 +213,10 @@ def _resolve_lldp_neighbors(
                     target_hostname=target_device.hostname,
                     target_port_id=neighbor.remote_port_id,
                     target_port_description=neighbor.remote_port_description,
-                    protocol="lldp",
+                    protocol=neighbor.protocol or "lldp",
                 )
             )
+
 
 
 def _resolve_default_routes(
@@ -212,14 +237,15 @@ def _resolve_default_routes(
         has_valid_ip = bool(route.next_hop) and str(route.next_hop) not in ("0.0.0.0", "127.0.0.1")
 
         if has_valid_ip:
-            is_already_known = any(_same_ip(d.ip, route.next_hop) for d in devices)
-            if not is_already_known:
+            target_device = _find_device_by_ip(devices, route.next_hop)
+            if target_device is None:
                 gateway_device = Device(
                     ip=route.next_hop,
                     hostname="Default Gateway",
                     description=f"Discovered via Default Route (0.0.0.0/0 Next-Hop {route.next_hop})",
                     vendor=Vendor.Unknown,
                     interfaces=[],
+                    all_ips=[str(route.next_hop)],
                     chassis_id=None,
                     is_managed=False,
                 )
@@ -254,7 +280,7 @@ def _resolve_default_routes(
 
         has_valid_ip = bool(route.next_hop) and str(route.next_hop) not in ("0.0.0.0", "127.0.0.1")
         if has_valid_ip:
-            target_device = next((d for d in devices if _same_ip(d.ip, route.next_hop)), None)
+            target_device = _find_device_by_ip(devices, route.next_hop)
             desc = f"0.0.0.0/0 Next-Hop ({route.next_hop})"
         else:
             gw_name = f"WAN Gateway ({source_interface})" if source_interface else "WAN Gateway"
@@ -286,3 +312,5 @@ def _resolve_default_routes(
                     protocol="default_route",
                 )
             )
+
+
