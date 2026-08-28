@@ -1,25 +1,17 @@
 from __future__ import annotations
 
 from ipaddress import IPv4Address, IPv6Address
-from typing import Optional, Union
 
-try:
-    from ..models.device import Device, Vendor
-    from ..models.discovery import DiscoveryResult
-    from ..models.link import Link
-    from ..models.neighbor import Neighbor, UnresolvedNeighbor
-    from ..models.route import DefaultRoute
-except (ImportError, ValueError):
-    from models.device import Device, Vendor
-    from models.discovery import DiscoveryResult
-    from models.link import Link
-    from models.neighbor import Neighbor, UnresolvedNeighbor
-    from models.route import DefaultRoute
+from ..models.device import Device, Vendor
+from ..models.discovery import DiscoveryResult
+from ..models.link import Link
+from ..models.neighbor import Neighbor, UnresolvedNeighbor
+from ..models.route import DefaultRoute
 
 
 def _same_ip(
-    ip1: Optional[Union[str, IPv4Address, IPv6Address]],
-    ip2: Optional[Union[str, IPv4Address, IPv6Address]],
+    ip1: str | IPv4Address | IPv6Address | None,
+    ip2: str | IPv4Address | IPv6Address | None,
 ) -> bool:
     if ip1 is None or ip2 is None:
         return ip1 is ip2
@@ -28,9 +20,19 @@ def _same_ip(
 
 def resolve_topology(
     devices: list[Device],
-    neighbor_records: list[tuple[Union[str, IPv4Address, IPv6Address], Neighbor]],
-    default_routes: list[tuple[Union[str, IPv4Address, IPv6Address], DefaultRoute]],
+    neighbor_records: list[tuple[str | IPv4Address | IPv6Address, Neighbor]],
+    default_routes: list[tuple[str | IPv4Address | IPv6Address, DefaultRoute]],
 ) -> DiscoveryResult:
+    """Resolve physical links, inferred unmanaged nodes, and WAN gateways into a topology graph.
+
+    Args:
+        devices: Discovered managed network devices.
+        neighbor_records: Discovered LLDP/CDP neighbor relationships.
+        default_routes: Discovered default routes (0.0.0.0/0).
+
+    Returns:
+        DiscoveryResult containing complete device list, resolved links, and unresolved neighbors.
+    """
     devices_list = list(devices)
     links: list[Link] = []
     unresolved_neighbors: list[UnresolvedNeighbor] = []
@@ -73,14 +75,14 @@ def _matches_neighbor(device: Device, neighbor: Neighbor) -> bool:
     return has_chassis_match or has_ip_match or has_hostname_match
 
 
-def _find_target_device(devices: list[Device], neighbor: Neighbor) -> Optional[Device]:
+def _find_target_device(devices: list[Device], neighbor: Neighbor) -> Device | None:
     for device in devices:
         if _matches_neighbor(device, neighbor):
             return device
     return None
 
 
-def _infer_unresolved_device(neighbor: Neighbor) -> Optional[Device]:
+def _infer_unresolved_device(neighbor: Neighbor) -> Device | None:
     has_identity = bool(neighbor.chassis_id) or (neighbor.remote_ip is not None) or (neighbor.hostname is not None)
     if not has_identity:
         return None
@@ -102,7 +104,7 @@ def _is_duplicate_link(
     links: list[Link],
     source: Device,
     target: Device,
-    source_interface: Optional[str],
+    source_interface: str | None,
     remote_port_id: str,
 ) -> bool:
     for link in links:
@@ -130,7 +132,7 @@ def _is_duplicate_link(
 
 def _resolve_lldp_neighbors(
     devices: list[Device],
-    neighbor_records: list[tuple[Union[str, IPv4Address, IPv6Address], Neighbor]],
+    neighbor_records: list[tuple[str | IPv4Address | IPv6Address, Neighbor]],
     links: list[Link],
     unresolved_neighbors: list[UnresolvedNeighbor],
 ) -> None:
@@ -190,7 +192,7 @@ def _resolve_lldp_neighbors(
 
 def _resolve_default_routes(
     devices: list[Device],
-    default_routes: list[tuple[Union[str, IPv4Address, IPv6Address], DefaultRoute]],
+    default_routes: list[tuple[str | IPv4Address | IPv6Address, DefaultRoute]],
     links: list[Link],
 ) -> None:
     # Phase 1: Add default gateway nodes if not already known

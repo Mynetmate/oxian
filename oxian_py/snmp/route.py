@@ -1,18 +1,14 @@
 from __future__ import annotations
 
 import ipaddress
-from typing import Optional
 
-try:
-    from ..models.route import DefaultRoute
-except (ImportError, ValueError):
-    from models.route import DefaultRoute
-
+from ..models.route import DefaultRoute
 from . import oid
 from .client import SnmpClient
 
 
-async def get_default_route(client: SnmpClient) -> Optional[DefaultRoute]:
+async def get_default_route(client: SnmpClient) -> DefaultRoute | None:
+    """Extract default route (0.0.0.0/0) from RFC 2096 ipCidrRouteTable."""
     try:
         rows = await client.walk_raw(oid.ip_cidr_route_next_hop())
     except Exception:

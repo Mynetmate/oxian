@@ -1,49 +1,42 @@
+"""Oxian - Network Device and Topology Discovery Core in Python."""
+
 from __future__ import annotations
 
 from ipaddress import IPv4Address, IPv6Address, ip_address
-from typing import Any, Optional, Union
+from typing import Any
 
-try:
-    from . import discovery, models, snmp, vendor
-    from .discovery import resolve_topology, scan, scan_one_device
-    from .models import (
-        DefaultRoute,
-        Device,
-        DiscoveryResult,
-        Interface,
-        InterfaceStatus,
-        Link,
-        Neighbor,
-        UnresolvedNeighbor,
-        Vendor,
-    )
-    from .vendor import detect_vender, detect_vendor
-except (ImportError, ValueError):
-    import discovery, models, snmp, vendor
-    from discovery import resolve_topology, scan, scan_one_device
-    from models import (
-        DefaultRoute,
-        Device,
-        DiscoveryResult,
-        Interface,
-        InterfaceStatus,
-        Link,
-        Neighbor,
-        UnresolvedNeighbor,
-        Vendor,
-    )
-    from vendor import detect_vender, detect_vendor
+from . import discovery, models, snmp, vendor
+from .discovery import resolve_topology, scan, scan_one_device
+from .models import (
+    DefaultRoute,
+    Device,
+    DiscoveryResult,
+    Interface,
+    InterfaceStatus,
+    Link,
+    Neighbor,
+    UnresolvedNeighbor,
+    Vendor,
+)
+from .vendor import detect_vender, detect_vendor
 
 
 async def discover(
-    target: Union[str, IPv4Address, IPv6Address],
+    target: str | IPv4Address | IPv6Address,
     port: int = 161,
     community: str = "public",
     timeout: int = 2,
 ) -> dict[str, Any]:
-    """Scan and discover network devices starting from the target IP address.
+    """Scan and discover network devices starting from the target seed IP address.
 
-    Returns a JSON-serializable dictionary with keys: devices, links, and unresolved_neighbors.
+    Args:
+        target: Seed device IP address (string or IPv4Address/IPv6Address).
+        port: SNMP UDP port (default: 161).
+        community: SNMP v2c community string (default: "public").
+        timeout: SNMP timeout in seconds (default: 2).
+
+    Returns:
+        JSON-serializable dictionary with keys: devices, links, and unresolved_neighbors.
     """
     ip = ip_address(str(target))
     result = await scan(ip, port=port, community=community, timeout=timeout)

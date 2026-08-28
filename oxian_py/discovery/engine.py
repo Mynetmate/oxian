@@ -2,28 +2,35 @@ from __future__ import annotations
 
 import collections
 from ipaddress import IPv4Address, IPv4Network, IPv6Address, ip_address
-import sys
-from typing import Optional, Union
+import logging
 
-try:
-    from ..models.discovery import DiscoveryResult
-    from ..models.neighbor import Neighbor
-    from ..models.route import DefaultRoute
-except (ImportError, ValueError):
-    from models.discovery import DiscoveryResult
-    from models.neighbor import Neighbor
-    from models.route import DefaultRoute
-
+from ..models.discovery import DiscoveryResult
+from ..models.neighbor import Neighbor
+from ..models.route import DefaultRoute
 from . import scanner, topology
+
+logger = logging.getLogger("oxian.discovery")
 
 
 async def scan(
-    ip: Union[str, IPv4Address, IPv6Address],
-    cidr: Optional[int] = None,
+    ip: str | IPv4Address | IPv6Address,
+    cidr: int | None = None,
     port: int = 161,
     community: str = "public",
     timeout: int = 2,
 ) -> DiscoveryResult:
+    """Scan and discover network devices and topology.
+
+    Args:
+        ip: Seed device IP or network address.
+        cidr: Optional CIDR subnet mask length for subnet scans (e.g. 24).
+        port: SNMP UDP port.
+        community: SNMP community string.
+        timeout: SNMP timeout in seconds.
+
+    Returns:
+        DiscoveryResult containing devices, links, and unresolved neighbors.
+    """
     if cidr is not None:
         return await scan_network(ip, cidr, port=port, community=community, timeout=timeout)
     else:
@@ -31,18 +38,32 @@ async def scan(
 
 
 async def scan_device(
-    ip: Union[str, IPv4Address, IPv6Address],
+    ip: str | IPv4Address | IPv6Address,
     port: int = 161,
     community: str = "public",
     timeout: int = 2,
 ) -> DiscoveryResult:
+    """Traverse network topology iteratively starting from a seed device IP.
+
+    Args:
+        ip: Seed device IP address.
+        port: SNMP UDP port.
+        community: SNMP community string.
+        timeout: SNMP timeout in seconds.
+
+    Returns:
+        DiscoveryResult representing the discovered network topology.
+
+    Raises:
+        TimeoutError: If the seed target device cannot be reached via SNMP.
+    """
     ip_obj = ip_address(str(ip))
-    queue: collections.deque[Union[IPv4Address, IPv6Address]] = collections.deque([ip_obj])
+    queue: collections.deque[IPv4Address | IPv6Address] = collections.deque([ip_obj])
     visited: set[str] = set()
     devices = []
 
-    neighbor_records: list[tuple[Union[str, IPv4Address, IPv6Address], Neighbor]] = []
-    default_route_records: list[tuple[Union[str, IPv4Address, IPv6Address], DefaultRoute]] = []
+    neighbor_records: list[tuple[str | IPv4Address | IPv6Address, Neighbor]] = []
+    default_route_records: list[tuple[str | IPv4Address | IPv6Address, DefaultRoute]] = []
 
     while queue:
         current_ip = queue.popleft()
@@ -54,7 +75,7 @@ async def scan_device(
                 current_ip, port=port, community=community, timeout=timeout
             )
         except Exception as e:
-            print(f"Failed to scan {current_ip}: {e}", file=sys.stderr)
+            logger.warning("Failed to scan %s: %s", current_ip, e)
             visited.add(str(current_ip))
             if current_ip == ip_obj and not devices:
                 raise
@@ -82,12 +103,24 @@ async def scan_device(
 
 
 async def scan_network(
-    ip: Union[str, IPv4Address, IPv6Address],
+    ip: str | IPv4Address | IPv6Address,
     cidr: int,
     port: int = 161,
     community: str = "public",
     timeout: int = 2,
 ) -> DiscoveryResult:
+    """Scan all reachable IP addresses within a CIDR subnet.
+
+    Args:
+        ip: Subnet network address.
+        cidr: Subnet mask bit length.
+        port: SNMP UDP port.
+        community: SNMP community string.
+        timeout: SNMP timeout in seconds.
+
+    Returns:
+        DiscoveryResult containing all responsive devices.
+    """
     ip_obj = ip_address(str(ip))
     if isinstance(ip_obj, IPv4Address):
         net = IPv4Network(f"{ip_obj}/{cidr}", strict=False)
@@ -101,7 +134,8 @@ async def scan_network(
                 host, port=port, community=community, timeout=timeout
             )
             devices.append(device)
-        except Exception:
+        except Exception as exc:
+            logger.debug("Host %s not responding: %s", host, exc)
             continue
 
     return topology.resolve_topology(devices, [], [])

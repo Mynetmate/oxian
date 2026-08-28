@@ -1,18 +1,15 @@
 from __future__ import annotations
 
 import ipaddress
-from typing import Any, Optional
+from typing import Any
 
-try:
-    from ..models.neighbor import Neighbor
-except (ImportError, ValueError):
-    from models.neighbor import Neighbor
-
+from ..models.neighbor import Neighbor
 from . import oid
 from .client import SnmpClient
 
 
 def normalize_chassis_id(value: Any) -> str:
+    """Normalize chassis ID string / binary into a clean lowercase hex string."""
     if value is None:
         return ""
 
@@ -28,7 +25,7 @@ def normalize_chassis_id(value: Any) -> str:
         pass
 
     s = str(value).strip()
-    if s.startswith("0x") or s.startswith("0X"):
+    if s.startswith(("0x", "0X")):
         s = s[2:]
 
     for ch in (":", ".", "-"):
@@ -37,7 +34,8 @@ def normalize_chassis_id(value: Any) -> str:
     return s.lower()
 
 
-def parse_remote_ip(value: Any) -> Optional[str]:
+def parse_remote_ip(value: Any) -> str | None:
+    """Parse remote management IP from LLDP management address octets."""
     if value is None:
         return None
 
@@ -61,7 +59,8 @@ def parse_remote_ip(value: Any) -> Optional[str]:
     return None
 
 
-async def get_local_chassis_id(client: SnmpClient) -> Optional[str]:
+async def get_local_chassis_id(client: SnmpClient) -> str | None:
+    """Query local device chassis ID via LLDP MIB."""
     try:
         val = await client.get(oid.lldp_loc_chassis_id())
         if val is not None:
@@ -73,6 +72,7 @@ async def get_local_chassis_id(client: SnmpClient) -> Optional[str]:
 
 
 async def discover_neighbors(client: SnmpClient) -> list[Neighbor]:
+    """Discover all LLDP neighbor adjacencies from target device."""
     hostnames = await client.walk_lldp_column(oid.lldp_rem_sys_name())
     ports = await client.walk_lldp_column(oid.lldp_rem_port_id())
     port_descriptions = await client.walk_lldp_column(oid.lldp_rem_port_description())

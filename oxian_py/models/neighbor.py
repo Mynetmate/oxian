@@ -1,23 +1,26 @@
 from __future__ import annotations
 
 from ipaddress import IPv4Address, IPv6Address
-from typing import Optional, Union
 from pydantic import BaseModel, ConfigDict
 
 
 class Neighbor(BaseModel):
+    """Raw neighbor adjacency discovered from LLDP or CDP tables."""
+
     model_config = ConfigDict(arbitrary_types_allowed=True, use_enum_values=True)
 
     chassis_id: str = ""
     remote_port_id: str = ""
-    remote_port_description: Optional[str] = None
-    hostname: Optional[str] = None
-    remote_ip: Optional[Union[str, IPv4Address, IPv6Address]] = None
+    remote_port_description: str | None = None
+    hostname: str | None = None
+    remote_ip: str | IPv4Address | IPv6Address | None = None
     local_interface: int = 0
 
 
 class UnresolvedNeighbor(BaseModel):
+    """An unresolved LLDP/CDP neighbor whose full device identity could not be queried."""
+
     model_config = ConfigDict(arbitrary_types_allowed=True, use_enum_values=True)
 
-    source_ip: Union[str, IPv4Address, IPv6Address]
+    source_ip: str | IPv4Address | IPv6Address
     neighbor: Neighbor
