@@ -1,8 +1,9 @@
 import unittest
-from oxian_py.models import InterfaceStatus, Vendor, DiscoveryResult, Device, Link, Neighbor, UnresolvedNeighbor
+from oxian_py.models import Interface, InterfaceStatus, Vendor, DiscoveryResult, Device, Link, Neighbor, UnresolvedNeighbor
 from oxian_py.vendor import detect_vendor, detect_vender
-from oxian_py.snmp.interface import parse_mac, value_to_u32
+from oxian_py.snmp.interface import parse_mac, value_to_u32, parse_ip_str
 from oxian_py.snmp.neighbors import normalize_chassis_id, parse_remote_ip
+
 
 
 class TestVendorAndHelpers(unittest.TestCase):
@@ -63,6 +64,33 @@ class TestVendorAndHelpers(unittest.TestCase):
         self.assertIn("unresolved_neighbors", d)
         self.assertEqual(d["devices"][0]["hostname"], "Router")
         self.assertEqual(d["devices"][0]["vendor"], "Cisco")
+
+    def test_parse_ip_str(self):
+        self.assertEqual(parse_ip_str("192.168.100.1"), "192.168.100.1")
+        self.assertEqual(parse_ip_str("255.255.255.0"), "255.255.255.0")
+        self.assertEqual(parse_ip_str(b"\xc0\xa8\x64\x01"), "192.168.100.1")
+        self.assertEqual(parse_ip_str(b"\xff\xff\xff\x00"), "255.255.255.0")
+        self.assertIsNone(parse_ip_str(None))
+        self.assertIsNone(parse_ip_str("invalid"))
+
+    def test_interface_model_with_ip(self):
+        iface = Interface(
+            index=1,
+            description="GigabitEthernet0/1",
+            mac_address="00:11:22:33:44:55",
+            admin_status=InterfaceStatus.Up,
+            oper_status=InterfaceStatus.Up,
+            ip_address="192.168.1.1",
+            subnet_mask="255.255.255.0",
+        )
+        self.assertEqual(iface.index, 1)
+        self.assertEqual(iface.ip_address, "192.168.1.1")
+        self.assertEqual(iface.subnet_mask, "255.255.255.0")
+
+        data = iface.model_dump()
+        self.assertEqual(data["ip_address"], "192.168.1.1")
+        self.assertEqual(data["subnet_mask"], "255.255.255.0")
+
 
 
 if __name__ == "__main__":

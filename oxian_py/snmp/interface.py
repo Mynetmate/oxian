@@ -64,17 +64,82 @@ def value_to_u32(value: Any) -> int | None:
         return None
 
 
+def parse_ip_str(value: Any) -> str | None:
+    """Parse IPv4 address / mask string from bytes, IpAddress, or str."""
+    if value is None:
+        return None
+
+    if isinstance(value, (bytes, bytearray)):
+        if len(value) == 4:
+            return ".".join(str(b) for b in value)
+        try:
+            val_str = value.decode("utf-8", errors="ignore").strip()
+            parts = val_str.split(".")
+            if len(parts) == 4 and all(p.isdigit() and 0 <= int(p) <= 255 for p in parts):
+                return val_str
+        except Exception:
+            pass
+
+    s = str(value).strip()
+    parts = s.split(".")
+    if len(parts) == 4 and all(p.isdigit() and 0 <= int(p) <= 255 for p in parts):
+        return s
+    return None
+
+
+async def get_device_ip_table(client: SnmpClient) -> tuple[dict[int, str], dict[int, str], list[str]]:
+    """Retrieve mapping of ifIndex -> IP, ifIndex -> subnet mask, and list of all valid IPs."""
+    ip_by_ifindex: dict[int, str] = {}
+    mask_by_ifindex: dict[int, str] = {}
+    all_ips: list[str] = []
+
+    try:
+        if_rows = await client.walk_raw(oid.ip_ad_ent_if_index())
+        mask_rows = await client.walk_raw(oid.ip_ad_ent_net_mask())
+
+        mask_by_ip: dict[str, str] = {}
+        for oid_parts, mask_raw in mask_rows:
+            if len(oid_parts) >= 4:
+                ip_str = ".".join(str(p) for p in oid_parts[-4:])
+                mask_str = parse_ip_str(mask_raw)
+                if mask_str:
+                    mask_by_ip[ip_str] = mask_str
+
+        for oid_parts, if_val in if_rows:
+            if len(oid_parts) >= 4:
+                ip_str = ".".join(str(p) for p in oid_parts[-4:])
+                if ip_str not in ("0.0.0.0", "127.0.0.1") and not ip_str.startswith("127."):
+                    if ip_str not in all_ips:
+                        all_ips.append(ip_str)
+
+                    if_idx = value_to_u32(if_val)
+                    if if_idx is not None and if_idx not in ip_by_ifindex:
+                        ip_by_ifindex[if_idx] = ip_str
+                        if ip_str in mask_by_ip:
+                            mask_by_ifindex[if_idx] = mask_by_ip[ip_str]
+    except Exception:
+        pass
+
+    return ip_by_ifindex, mask_by_ifindex, all_ips
+
+
 async def get_device_interface(client: SnmpClient) -> list[Interface]:
-    """Retrieve and build Interface models for all network ports via ifTable."""
+    """Retrieve and build Interface models for all network ports via ifTable and IP-MIB."""
     descriptions = await client.walk_column(oid.if_descr())
     names = await client.walk_column(oid.if_name())
     macs = await client.walk_column(oid.if_phys_address())
     admin_status = await client.walk_column(oid.if_admin_status())
     oper_status = await client.walk_column(oid.if_oper_status())
+    ip_by_ifindex, mask_by_ifindex, _ = await get_device_ip_table(client)
 
     interfaces: list[Interface] = []
 
-    all_indices = sorted(set(descriptions.keys()) | set(names.keys()) | set(macs.keys()))
+    all_indices = sorted(
+        set(descriptions.keys())
+        | set(names.keys())
+        | set(macs.keys())
+        | set(ip_by_ifindex.keys())
+    )
 
     for index in all_indices:
         description = names.get(index) or descriptions.get(index)
@@ -100,9 +165,10 @@ async def get_device_interface(client: SnmpClient) -> list[Interface]:
             mac_address=parse_mac(mac_raw),
             admin_status=admin_val,
             oper_status=oper_val,
+            ip_address=ip_by_ifindex.get(index),
+            subnet_mask=mask_by_ifindex.get(index),
         )
         interfaces.append(interface)
-
 
     interfaces.sort(key=lambda inf: inf.index)
     return interfaces
@@ -110,17 +176,7 @@ async def get_device_interface(client: SnmpClient) -> list[Interface]:
 
 async def get_device_ip_addresses(client: SnmpClient) -> list[str]:
     """Retrieve all IPv4 addresses configured on the device from IP-MIB ipAddrTable."""
-    try:
-        rows = await client.walk_raw(oid.ip_ad_ent_if_index())
-        ips: list[str] = []
-        for oid_parts, _ in rows:
-            if len(oid_parts) >= 4:
-                ip_parts = oid_parts[-4:]
-                ip_str = ".".join(str(p) for p in ip_parts)
-                if ip_str not in ("0.0.0.0", "127.0.0.1") and not ip_str.startswith("127."):
-                    if ip_str not in ips:
-                        ips.append(ip_str)
-        return ips
-    except Exception:
-        return []
+    _, _, all_ips = await get_device_ip_table(client)
+    return all_ips
+
 

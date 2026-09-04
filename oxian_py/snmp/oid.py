@@ -94,3 +94,8 @@ def ip_ad_ent_if_index() -> str:
     return "1.3.6.1.2.1.4.20.1.2"
 
 
+def ip_ad_ent_net_mask() -> str:
+    return "1.3.6.1.2.1.4.20.1.3"
+
+
+
