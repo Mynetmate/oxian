@@ -38,3 +38,6 @@ class Interface(BaseModel):
     mac_address: str | None = None
     admin_status: InterfaceStatus | str | None = None
     oper_status: InterfaceStatus | str | None = None
+    ip_address: str | None = None
+    subnet_mask: str | None = None
+
