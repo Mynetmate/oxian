@@ -91,6 +91,10 @@ class TestVendorAndHelpers(unittest.TestCase):
         self.assertEqual(data["ip_address"], "192.168.1.1")
         self.assertEqual(data["subnet_mask"], "255.255.255.0")
 
+    def test_sys_up_time_oid(self):
+        from oxian_py.snmp.oid import sys_up_time
+        self.assertEqual(sys_up_time(), "1.3.6.1.2.1.1.3.0")
+
 
 
 if __name__ == "__main__":
