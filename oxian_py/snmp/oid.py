@@ -13,6 +13,10 @@ def sys_name() -> str:
     return "1.3.6.1.2.1.1.5.0"
 
 
+def sys_up_time() -> str:
+    return "1.3.6.1.2.1.1.3.0"
+
+
 def if_descr() -> str:
     return "1.3.6.1.2.1.2.2.1.2"
 
