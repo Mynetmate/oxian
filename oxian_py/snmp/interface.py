@@ -69,22 +69,32 @@ def parse_ip_str(value: Any) -> str | None:
     if value is None:
         return None
 
-    if isinstance(value, (bytes, bytearray)):
-        if len(value) == 4:
-            return ".".join(str(b) for b in value)
+    if hasattr(value, "prettyPrint"):
         try:
-            val_str = value.decode("utf-8", errors="ignore").strip()
-            parts = val_str.split(".")
+            pp = str(value.prettyPrint()).strip()
+            parts = pp.split(".")
             if len(parts) == 4 and all(p.isdigit() and 0 <= int(p) <= 255 for p in parts):
-                return val_str
+                return pp
         except Exception:
             pass
+
+    try:
+        raw_b = bytes(value)
+        if len(raw_b) == 4:
+            return ".".join(str(b) for b in raw_b)
+        val_str = raw_b.decode("utf-8", errors="ignore").strip()
+        parts = val_str.split(".")
+        if len(parts) == 4 and all(p.isdigit() and 0 <= int(p) <= 255 for p in parts):
+            return val_str
+    except Exception:
+        pass
 
     s = str(value).strip()
     parts = s.split(".")
     if len(parts) == 4 and all(p.isdigit() and 0 <= int(p) <= 255 for p in parts):
         return s
     return None
+
 
 
 async def get_device_ip_table(client: SnmpClient) -> tuple[dict[int, str], dict[int, str], list[str]]:
